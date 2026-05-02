@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{% if collection %}Edit {{ collection.name }}{% else %}New Collection{% endif %} — dnsctl{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>{% if collection %}Edit collection{% else %}New collection{% endif %}</h2>
+  <a href="{% if collection %}/collections/{{ collection.id }}{% else %}/collections{% endif %}" class="outline secondary">Cancel</a>
+</div>
+
+<form action="{% if collection %}/collections/{{ collection.id }}/edit{% else %}/collections{% endif %}" method="post">
+  <div class="grid">
+    <label>
+      Name
+      <input type="text" name="name" value="{{ collection.name if collection else '' }}" required autofocus>
+    </label>
+    <label>
+      Subdomain <span class="muted">(optional)</span>
+      <input type="text" name="subdomain" value="{{ collection.subdomain if collection and collection.subdomain else '' }}"
+             placeholder="e.g. iot" pattern="[a-z0-9-]*">
+      <small class="muted">Hosts become <code>hostname.subdomain.zone</code>. Leave blank for <code>hostname.zone</code>.</small>
+    </label>
+  </div>
+
+  <label>
+    Description <span class="muted">(optional)</span>
+    <input type="text" name="description" value="{{ collection.description if collection and collection.description else '' }}">
+  </label>
+
+  <label>
+    Subnets
+    <textarea name="subnets_text" rows="3"
+              placeholder="192.168.10.0/24&#10;10.0.1.0/24">{% if subnets %}{% for sn in subnets %}{{ sn.cidr }}
+{% endfor %}{% endif %}</textarea>
+    <small class="muted">One CIDR per line. Used to match DHCP scopes and for display only.</small>
+  </label>
+
+  <button type="submit">{% if collection %}Save changes{% else %}Create collection{% endif %}</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Settings — dnsctl{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Settings</h2>
+</div>
+
+<form action="/settings" method="post">
+  <div class="grid">
+
+    <article>
+      <header><strong>DNS Zone</strong></header>
+      <label>
+        Zone name
+        <input type="text" name="zone" value="{{ gs.zone }}" placeholder="home.lan" required
+               pattern="[a-zA-Z0-9._-]+" title="Valid DNS zone name">
+        <small class="muted">All hosts are written into this zone. Subdomains are added as a prefix per collection (e.g. <code>host.iot.{{ gs.zone }}</code>).</small>
+      </label>
+    </article>
+
+    <article>
+      <header><strong>Technitium Connection</strong></header>
+
+      {% if not has_token %}
+      <div class="flash warning" style="margin-bottom:1rem">
+        No API token configured. <a href="/profile">Go to your profile</a> to add one before testing.
+      </div>
+      {% endif %}
+
+      <label>
+        Server URL
+        <input type="url" name="technitium_url" value="{{ gs.technitium_url }}"
+               placeholder="http://192.168.1.1:5380" required>
+        <small class="muted">Base URL of your Technitium DNS server, no trailing slash.</small>
+      </label>
+
+      <div style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem">
+        <button type="button"
+                hx-get="/settings/test"
+                hx-include="[name='technitium_url']"
+                hx-target="#test-result"
+                hx-swap="innerHTML"
+                hx-indicator="#test-spinner"
+                {% if not has_token %}disabled{% endif %}
+                class="outline secondary"
+                style="margin:0;width:auto">
+          Test connection
+        </button>
+        <span id="test-spinner" class="htmx-indicator muted" style="font-size:0.85rem">Testing…</span>
+        <span id="test-result"></span>
+      </div>
+    </article>
+
+  </div>
+
+  <button type="submit">Save settings</button>
+</form>
+
+{% endblock %}

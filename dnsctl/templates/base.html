@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}dnsctl{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+</head>
+<body class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-header">dns<span>ctl</span></div>
+
+    <nav>
+      <ul>
+        <li><span class="sidebar-section">Hosts</span></li>
+        <li><a href="/hosts" {% if request.url.path == '/hosts' %}class="active"{% endif %}>All Hosts</a></li>
+        <li><a href="/collections" {% if request.url.path.startswith('/collections') %}class="active"{% endif %}>Collections</a></li>
+        <li>
+          <a href="/discovery" {% if request.url.path.startswith('/discovery') %}class="active"{% endif %}>
+            Discovered
+            {% if discovery_count > 0 %}<span style="float:right;background:#f59e0b;color:#fff;border-radius:9999px;padding:0 0.4rem;font-size:0.75rem">{{ discovery_count }}</span>{% endif %}
+          </a>
+        </li>
+
+        <li><span class="sidebar-section">Blocking</span></li>
+        <li><a href="/blocking/lists" {% if request.url.path.startswith('/blocking/lists') %}class="active"{% endif %}>Block Lists</a></li>
+        <li><a href="/blocking/rulesets" {% if request.url.path.startswith('/blocking/rulesets') %}class="active"{% endif %}>Rule Sets</a></li>
+
+        <li><span class="sidebar-section">System</span></li>
+        <li><a href="/settings" {% if request.url.path.startswith('/settings') %}class="active"{% endif %}>Settings</a></li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      {% if user %}
+      <div class="username">{{ user.username }}</div>
+      <div class="footer-links">
+        <a href="/profile">Profile</a>
+        <form action="/logout" method="post" style="margin:0">
+          <button type="submit" class="outline secondary" style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0">Logout</button>
+        </form>
+      </div>
+      {% if undo_count > 0 %}
+      <div class="undo-bar">
+        <button
+          hx-post="/undo"
+          hx-target="body"
+          hx-swap="outerHTML"
+          class="outline contrast">
+          ↩ Undo ({{ undo_count }})
+        </button>
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+  </aside>
+
+  <main class="app-main">
+    {% if flash %}
+    <div class="flash {{ flash.type }}">{{ flash.message }}</div>
+    {% endif %}
+
+    {% if drift_count > 0 or discovery_count > 0 %}
+    <div class="alert-banner">
+      {% if drift_count > 0 %}
+      <span>⚠ {{ drift_count }} host{{ 's' if drift_count != 1 else '' }} drifted from DNS</span>
+      {% endif %}
+      {% if discovery_count > 0 %}
+      <a href="/discovery">{{ discovery_count }} new host{{ 's' if discovery_count != 1 else '' }} discovered in Technitium →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

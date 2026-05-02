@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Collections — dnsctl{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Collections</h2>
+  <div style="display:flex;gap:0.5rem">
+    <a href="/collections/hosts/new" role="button" class="outline secondary">+ Add host</a>
+    <a href="/collections/new" role="button" class="outline">+ New collection</a>
+  </div>
+</div>
+
+{% if coll_data %}
+<figure>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Subdomain</th>
+        <th>Subnets</th>
+        <th>Hosts</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in coll_data %}
+      <tr id="collection-{{ row.collection.id }}">
+        <td><a href="/collections/{{ row.collection.id }}">{{ row.collection.name }}</a></td>
+        <td>{% if row.collection.subdomain %}<code>{{ row.collection.subdomain }}</code>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% for sn in row.subnets %}<code>{{ sn.cidr }}</code>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+        <td>{{ row.host_count }}</td>
+        <td>
+          {% if row.status == "no hosts" %}
+            <span class="muted">no hosts</span>
+          {% else %}
+            <span class="badge badge-{{ row.status }}">{{ row.status }}</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap">
+          <a href="/collections/{{ row.collection.id }}/edit" class="muted" style="margin-right:0.5rem">✎</a>
+          <button
+            hx-delete="/collections/{{ row.collection.id }}"
+            hx-target="#collection-{{ row.collection.id }}"
+            hx-swap="outerHTML swap:300ms"
+            hx-confirm="Delete collection '{{ row.collection.name }}' and unsync all its hosts?"
+            class="outline secondary"
+            style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% else %}
+<p class="muted">No collections yet. <a href="/collections/new">Create one</a> to get started.</p>
+{% endif %}
+
+{% endblock %}

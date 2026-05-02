@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Discovered Hosts — dnsctl{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Discovered Hosts</h2>
+</div>
+
+<p class="muted" style="margin-bottom:1.5rem">
+  These hosts were found in <code>{{ zone }}</code> but are not managed by dnsctl.
+  Import them into a collection or dismiss them.
+</p>
+
+{% if not discoveries %}
+<p class="muted">No unmanaged hosts found.</p>
+{% else %}
+<figure>
+  <table>
+    <thead>
+      <tr>
+        <th>FQDN</th>
+        <th>IP address</th>
+        <th>MAC address</th>
+        <th>Suggested collection</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="discovery-tbody">
+      {% for d in discoveries %}
+      {% set suggested = collections | selectattr("id", "equalto", d.suggested_collection_id) | first | default(None) %}
+      <tr id="discovery-{{ d.id }}">
+        <td><code>{{ d.fqdn }}</code></td>
+        <td><code>{{ d.ip_address }}</code></td>
+        <td>
+          {% if d.mac_address %}
+          <code>{{ d.mac_address }}</code>
+          {% else %}
+          <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if suggested %}
+          <span>{{ suggested.name }}</span>
+          {% else %}
+          <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap">
+          <a href="/discovery/{{ d.id }}/import" role="button"
+             style="padding:0.15rem 0.6rem;font-size:0.8rem;margin:0 0.25rem 0 0">Import</a>
+          <button
+            hx-post="/discovery/{{ d.id }}/dismiss"
+            hx-target="#discovery-{{ d.id }}"
+            hx-swap="outerHTML swap:300ms"
+            class="outline secondary"
+            style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">Dismiss</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% endif %}
+
+{% endblock %}

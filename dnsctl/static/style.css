@@ -1,0 +1,234 @@
+:root {
+    --sidebar-width: 220px;
+    --color-success-bg: #d1fae5;
+    --color-success-text: #065f46;
+    --color-error-bg: #fee2e2;
+    --color-error-text: #991b1b;
+    --color-warning-bg: #fef3c7;
+    --color-warning-text: #92400e;
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+
+body.app-layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+.sidebar {
+    background: var(--pico-card-background-color);
+    border-right: 1px solid var(--pico-muted-border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 1.25rem 1rem 1rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.sidebar-header span {
+    color: var(--pico-primary);
+}
+
+.sidebar nav {
+    flex: 1;
+    padding: 0.75rem 0;
+}
+
+.sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar nav li a {
+    display: block;
+    padding: 0.45rem 1rem;
+    color: var(--pico-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-radius: 0;
+}
+
+.sidebar nav li a:hover {
+    background: var(--pico-muted-background-color);
+    color: var(--pico-primary);
+}
+
+.sidebar nav li a.active {
+    background: var(--pico-primary);
+    color: #fff;
+    font-weight: 500;
+}
+
+.sidebar-section {
+    padding: 0.75rem 1rem 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--pico-muted-color);
+}
+
+.sidebar-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+    font-size: 0.85rem;
+}
+
+.sidebar-footer .username {
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-footer .footer-links {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.sidebar-footer .footer-links a {
+    color: var(--pico-muted-color);
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.sidebar-footer .footer-links a:hover {
+    color: var(--pico-primary);
+}
+
+.app-main {
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+/* ── Undo bar ────────────────────────────────────────── */
+
+.undo-bar {
+    margin: 0.75rem 0 0;
+}
+
+.undo-bar button {
+    width: 100%;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+}
+
+/* ── Flash messages ──────────────────────────────────── */
+
+.flash {
+    padding: 0.75rem 1rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+}
+
+.flash.success {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+}
+
+.flash.error {
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
+}
+
+.flash.warning {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+}
+
+/* ── Standalone pages (login, setup) ────────────────── */
+
+body.standalone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--pico-background-color);
+}
+
+.standalone-card {
+    width: 100%;
+    max-width: 380px;
+    padding: 2rem;
+}
+
+.standalone-card h1 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.standalone-card .subtitle {
+    color: var(--pico-muted-color);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ── Sync status badges ──────────────────────────────── */
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: lowercase;
+}
+
+.badge-synced  { background: var(--color-success-bg); color: var(--color-success-text); }
+.badge-pending { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.badge-error   { background: var(--color-error-bg);   color: var(--color-error-text); }
+.badge-drift   { background: #e0e7ff; color: #3730a3; }
+
+/* ── Drift / discovery banner ────────────────────────── */
+
+.alert-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 1.25rem;
+    font-size: 0.88rem;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.alert-banner a {
+    color: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+}
+
+/* ── Utilities ───────────────────────────────────────── */
+
+.page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.page-header h2 {
+    margin: 0;
+}
+
+.muted {
+    color: var(--pico-muted-color);
+    font-size: 0.875rem;
+}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — dnsctl{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Profile</h2>
+</div>
+
+<div class="grid">
+
+  <article>
+    <header><strong>Change password</strong></header>
+    <form action="/profile/password" method="post">
+      <label>
+        Current password
+        <input type="password" name="current_password" autocomplete="current-password" required>
+      </label>
+      <label>
+        New password
+        <input type="password" name="new_password" autocomplete="new-password" required minlength="8">
+      </label>
+      <label>
+        Confirm new password
+        <input type="password" name="confirm_password" autocomplete="new-password" required minlength="8">
+      </label>
+      <button type="submit">Update password</button>
+    </form>
+  </article>
+
+  <article>
+    <header><strong>Technitium API token</strong></header>
+    <p class="muted">
+      Generate a token in Technitium under
+      <em>Administration → API Tokens</em>, then paste it here.
+      It is stored encrypted and never shown again.
+    </p>
+
+    {% if has_token %}
+    <div class="flash success" style="margin-bottom:1rem">A token is currently saved.</div>
+    <form action="/profile/token/clear" method="post" style="margin-bottom:1rem">
+      <button type="submit" class="outline secondary">Remove token</button>
+    </form>
+    <hr>
+    <p class="muted" style="margin-top:1rem">To replace it, enter a new token below:</p>
+    {% endif %}
+
+    <form action="/profile/token" method="post">
+      <label>
+        API token
+        <input type="password" name="technitium_token" autocomplete="off"
+               placeholder="{% if has_token %}Enter new token to replace{% else %}Paste token here{% endif %}"
+               {% if not has_token %}required{% endif %}>
+      </label>
+      <button type="submit">Save token</button>
+    </form>
+  </article>
+
+</div>
+{% endblock %}

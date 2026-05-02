@@ -1,0 +1,38 @@
+<tr id="host-{{ host.id }}">
+  <td>
+    <input type="text" name="hostname" value="{{ host.hostname }}" required
+           pattern="[a-zA-Z0-9-]+" style="margin:0;padding:0.2rem 0.4rem;font-size:0.9rem">
+  </td>
+  <td class="muted" style="font-size:0.85rem">{{ fqdn }}</td>
+  <td>
+    <input type="text" name="ip_address" value="{{ host.ip_address }}" required
+           pattern="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" style="margin:0;padding:0.2rem 0.4rem;font-size:0.9rem">
+  </td>
+  <td>
+    <input type="text" name="mac_address" value="{{ host.mac_address }}" required
+           pattern="[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}" style="margin:0;padding:0.2rem 0.4rem;font-size:0.9rem">
+  </td>
+  {% if show_collection %}
+  <td><a href="/collections/{{ collection.id }}">{{ collection.name }}</a></td>
+  {% endif %}
+  <td>
+    <input type="hidden" name="show_collection" value="{{ 'true' if show_collection else 'false' }}">
+  </td>
+  <td style="white-space:nowrap">
+    <button
+      hx-post="/collections/{{ collection.id }}/hosts/{{ host.id }}/edit"
+      hx-include="closest tr"
+      hx-target="#host-{{ host.id }}"
+      hx-swap="outerHTML"
+      class="outline"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0 0.25rem 0 0"
+      title="Save">✓</button>
+    <button
+      hx-get="/collections/{{ collection.id }}/hosts/{{ host.id }}/row{% if show_collection %}?show_collection=true{% endif %}"
+      hx-target="#host-{{ host.id }}"
+      hx-swap="outerHTML"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0"
+      title="Cancel">✕</button>
+  </td>
+</tr>

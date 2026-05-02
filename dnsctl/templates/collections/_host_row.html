@@ -1,0 +1,40 @@
+<tr id="host-{{ host.id }}">
+  <td><code>{{ host.hostname }}</code></td>
+  <td class="muted" style="font-size:0.85rem">{{ fqdn }}</td>
+  <td><code>{{ host.ip_address }}</code></td>
+  <td><code>{{ host.mac_address }}</code></td>
+  {% if show_collection %}
+  <td><a href="/collections/{{ collection.id }}">{{ collection.name }}</a></td>
+  {% endif %}
+  <td>
+    <span class="badge badge-{{ host.sync_status }}"
+          {% if host.last_error %}title="{{ host.last_error }}"{% endif %}>
+      {{ host.sync_status }}
+    </span>
+  </td>
+  <td style="white-space:nowrap">
+    {% if host.sync_status != "synced" %}
+    <button
+      hx-post="/collections/{{ collection.id }}/hosts/{{ host.id }}/sync{% if show_collection %}?show_collection=true{% endif %}"
+      hx-target="#host-{{ host.id }}"
+      hx-swap="outerHTML"
+      class="outline"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0 0.25rem 0 0"
+      title="Re-sync this host to DNS">↺</button>
+    {% endif %}
+    <button
+      hx-get="/collections/{{ collection.id }}/hosts/{{ host.id }}/edit{% if show_collection %}?show_collection=true{% endif %}"
+      hx-target="#host-{{ host.id }}"
+      hx-swap="outerHTML"
+      class="outline"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0 0.25rem 0 0"
+      title="Edit">✎</button>
+    <button
+      hx-delete="/collections/{{ collection.id }}/hosts/{{ host.id }}"
+      hx-target="#host-{{ host.id }}"
+      hx-swap="outerHTML swap:300ms"
+      hx-confirm="Remove {{ host.hostname }} and unsync from Technitium?"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+  </td>
+</tr>

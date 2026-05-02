@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Import {{ discovery.fqdn }} — dnsctl{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <p class="muted" style="margin:0 0 0.25rem"><a href="/discovery">Discovered Hosts</a> ›</p>
+    <h2 style="margin:0">Import host</h2>
+  </div>
+</div>
+
+<article>
+  <header>
+    <strong><code>{{ discovery.fqdn }}</code></strong>
+    &nbsp;<span class="muted">{{ discovery.ip_address }}</span>
+  </header>
+
+  <form action="/discovery/{{ discovery.id }}/import" method="post">
+    <label>
+      Collection
+      <select name="collection_id" required>
+        {% for c in collections %}
+        <option value="{{ c.id }}"
+          {% if c.id == discovery.suggested_collection_id %}selected{% endif %}>
+          {{ c.name }}{% if c.subdomain %} ({{ c.subdomain }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <small class="muted">
+        The hostname will be derived from the FQDN by stripping the zone and collection subdomain.
+      </small>
+    </label>
+
+    <label>
+      MAC address
+      <input type="text" name="mac_address"
+             value="{{ discovery.mac_address or '' }}"
+             placeholder="aa:bb:cc:dd:ee:ff or aa-bb-cc-dd-ee-ff"
+             pattern="[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}"
+             {% if not discovery.mac_address %}required{% endif %}>
+      {% if not discovery.mac_address %}
+      <small class="muted">MAC not found in DHCP — please enter it manually.</small>
+      {% endif %}
+    </label>
+
+    <div style="display:flex;gap:0.75rem">
+      <button type="submit">Import host</button>
+      <a href="/discovery" role="button" class="outline secondary">Cancel</a>
+    </div>
+  </form>
+</article>
+
+{% endblock %}

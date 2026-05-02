@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dnsctl — Setup</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="standalone">
+  <article class="standalone-card">
+    <h1>dns<strong>ctl</strong></h1>
+    <p class="subtitle">Create the first admin account</p>
+
+    {% if error %}
+    <div class="flash error">{{ error }}</div>
+    {% endif %}
+
+    <form action="/setup" method="post">
+      <label>
+        Username
+        <input type="text" name="username" autocomplete="username" autofocus required>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="new-password" required minlength="8">
+      </label>
+      <label>
+        Confirm password
+        <input type="password" name="confirm_password" autocomplete="new-password" required minlength="8">
+      </label>
+      <button type="submit">Create account</button>
+    </form>
+  </article>
+</body>
+</html>
