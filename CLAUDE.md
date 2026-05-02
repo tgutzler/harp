@@ -1,13 +1,13 @@
-# dnsctl
+# harp
 
 A web UI for managing Technitium DNS Server — focused on host management, DNS/DHCP sync, and per-collection advanced blocking rules.
 
 ## Stack
 
 - **FastAPI** + Jinja2 templates + HTMX (server-rendered, no build step)
-- **SQLModel** + aiosqlite — async SQLite ORM (all models defined in `dnsctl/models.py`)
-- **httpx** async client — wraps Technitium HTTP API (`dnsctl/client/`)
-- **pydantic-settings** — typed env-var config (`dnsctl/config.py`)
+- **SQLModel** + aiosqlite — async SQLite ORM (all models defined in `harp/models.py`)
+- **httpx** async client — wraps Technitium HTTP API (`harp/client/`)
+- **pydantic-settings** — typed env-var config (`harp/config.py`)
 - **bcrypt** — password hashing; **cryptography (Fernet)** — encrypt stored API tokens
 - **uvicorn** — ASGI server
 
@@ -23,7 +23,7 @@ First run: visit `/setup` to create the initial admin user.
 ## Project Layout
 
 ```
-dnsctl/
+harp/
 ├── app.py              # FastAPI factory, lifespan, middleware, router mounts
 ├── config.py           # Settings (env vars)
 ├── database.py         # async engine, session factory, create_db_tables()
@@ -48,7 +48,7 @@ dnsctl/
 
 ### Auth / Session
 
-- **User** — dnsctl login credentials + encrypted Technitium API token
+- **User** — HARP login credentials + encrypted Technitium API token
 - **UserSession** — one row per login; scopes the undo stack
 
 ### Core
@@ -79,8 +79,8 @@ dnsctl/
 ## Key Design Decisions
 
 ### Auth model (two layers)
-1. **dnsctl login** — own `users` table, bcrypt passwords, Starlette SessionMiddleware
-2. **Technitium API token** — user generates a long-lived token in Technitium, pastes it into their dnsctl profile; stored Fernet-encrypted in the DB; never appears in the browser
+1. **HARP login** — own `users` table, bcrypt passwords, Starlette SessionMiddleware
+2. **Technitium API token** — user generates a long-lived token in Technitium, pastes it into their HARP profile; stored Fernet-encrypted in the DB; never appears in the browser
 
 Session cookie contains `user_id` + `session_id`. `session_id` scopes the undo stack for that login.
 
@@ -115,7 +115,7 @@ Same URL serves full page or fragment based on `HX-Request` header. Dashboard st
 | Variable | Default | Notes |
 |---|---|---|
 | `SECRET_KEY` | (unsafe default) | Change in production — also keys Fernet encryption |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./dnsctl.db` | |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./harp.db` | |
 | `HOST` | `0.0.0.0` | |
 | `PORT` | `8000` | |
 | `LOG_LEVEL` | `info` | |
@@ -125,7 +125,7 @@ Same URL serves full page or fragment based on `HX-Request` header. Dashboard st
 
 | Phase | Status | What |
 |---|---|---|
-| 1 | **done** | App skeleton, dnsctl user auth (login/logout/setup/profile), session, full DB schema |
+| 1 | **done** | App skeleton, HARP user auth (login/logout/setup/profile), session, full DB schema |
 | 2 | todo | GlobalSettings UI (zone + Technitium URL/token), connectivity test |
 | 3 | todo | Collections + Hosts CRUD → auto-sync A/PTR/DHCP to Technitium |
 | 4 | todo | ChangeLog + global undo stack |

@@ -3,33 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>dnsctl — Setup</title>
+  <title>HARP — Login</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="standalone">
   <article class="standalone-card">
     <h1>dns<strong>ctl</strong></h1>
-    <p class="subtitle">Create the first admin account</p>
+    <p class="subtitle">Sign in to continue</p>
+
+    {% if request.query_params.get("created") %}
+    <div class="flash success">Account created — please sign in</div>
+    {% endif %}
 
     {% if error %}
     <div class="flash error">{{ error }}</div>
     {% endif %}
 
-    <form action="/setup" method="post">
+    <form action="/login" method="post">
       <label>
         Username
         <input type="text" name="username" autocomplete="username" autofocus required>
       </label>
       <label>
         Password
-        <input type="password" name="password" autocomplete="new-password" required minlength="8">
+        <input type="password" name="password" autocomplete="current-password" required>
       </label>
-      <label>
-        Confirm password
-        <input type="password" name="confirm_password" autocomplete="new-password" required minlength="8">
-      </label>
-      <button type="submit">Create account</button>
+      <button type="submit">Sign in</button>
     </form>
   </article>
 </body>

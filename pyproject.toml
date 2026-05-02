@@ -1,7 +1,7 @@
 [project]
-name = "dnsctl"
+name = "harp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Host Address Registration Portal — Technitium DNS/DHCP management UI"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

@@ -24,7 +24,7 @@ async def find_scope_for_ip(client: TechnitiumClient, ip: str) -> Optional[str]:
 
 
 async def ensure_scope_domain(client: TechnitiumClient, scope_name: str, zone: str) -> None:
-    """Ensure the scope doesn't auto-create DNS records — dnsctl manages DNS explicitly."""
+    """Ensure the scope doesn't auto-create DNS records — HARP manages DNS explicitly."""
     detail = await client._request("GET", "dhcp/scopes/get", params={"name": scope_name})
     needs_update = (
         detail.get("domainName") != zone

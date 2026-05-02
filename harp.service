@@ -1,19 +1,19 @@
 [Unit]
-Description=dnsctl — Technitium DNS management UI
+Description=harp — Technitium DNS management UI
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/dnsctl
-EnvironmentFile=/root/dnsctl/.env
-ExecStart=/root/dnsctl/.venv/bin/python /root/dnsctl/main.py
+WorkingDirectory=/root/harp
+EnvironmentFile=/root/harp/.env
+ExecStart=/root/harp/.venv/bin/python /root/harp/main.py
 Restart=on-failure
 RestartSec=5
 
 # Redirect stdout/stderr to journald
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=dnsctl
+SyslogIdentifier=harp
 
 [Install]
 WantedBy=multi-user.target

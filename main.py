@@ -1,11 +1,11 @@
 import uvicorn
 
-from dnsctl.config import settings
+from harp.config import settings
 
 
 def main():
     uvicorn.run(
-        "dnsctl.app:app",
+        "harp.app:app",
         host=settings.host,
         port=settings.port,
         log_level=settings.log_level,
