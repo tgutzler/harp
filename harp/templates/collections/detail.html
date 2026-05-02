@@ -18,9 +18,7 @@
 {% endif %}
 
 <div style="margin-bottom:1.5rem;font-size:0.9rem">
-  {% if collection.subdomain %}
-  <span class="muted">Subdomain:</span> <code>{{ collection.subdomain }}</code> &nbsp;
-  {% endif %}
+  <span class="muted">Domain:</span> <code>{% if collection.subdomain %}{{ collection.subdomain }}.{% endif %}{{ zone }}</code> &nbsp;
   {% if subnets %}
   <span class="muted">Subnets:</span>
   {% for sn in subnets %}<code>{{ sn.cidr }}</code>{% if not loop.last %} {% endif %}{% endfor %}

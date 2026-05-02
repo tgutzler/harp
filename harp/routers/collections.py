@@ -73,6 +73,7 @@ async def collections_index(
     request: Request,
     user: User = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
 ):
     ctx = await base_context(request, db)
     result = await db.exec(select(Collection).order_by(Collection.name))
@@ -95,6 +96,7 @@ async def collections_index(
         coll_data.append({"collection": c, "subnets": sn.all(), "host_count": len(host_list), "status": status})
 
     ctx["coll_data"] = coll_data
+    ctx["zone"] = gs.zone
     return templates.TemplateResponse(request, "collections/index.html", ctx)
 
 

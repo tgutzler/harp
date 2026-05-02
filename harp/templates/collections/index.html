@@ -16,7 +16,7 @@
     <thead>
       <tr>
         <th>Name</th>
-        <th>Subdomain</th>
+        <th>Domain</th>
         <th>Subnets</th>
         <th>Hosts</th>
         <th>Status</th>
@@ -27,7 +27,7 @@
       {% for row in coll_data %}
       <tr id="collection-{{ row.collection.id }}">
         <td><a href="/collections/{{ row.collection.id }}">{{ row.collection.name }}</a></td>
-        <td>{% if row.collection.subdomain %}<code>{{ row.collection.subdomain }}</code>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td><code>{% if row.collection.subdomain %}{{ row.collection.subdomain }}.{% endif %}{{ zone }}</code></td>
         <td>{% for sn in row.subnets %}<code>{{ sn.cidr }}</code>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
         <td>{{ row.host_count }}</td>
         <td>
