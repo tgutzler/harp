@@ -65,9 +65,9 @@ async def manual_sync(
         return HTMLResponse('<span class="badge badge-error">No API token configured — visit your profile.</span>')
     try:
         await sync_blocking(client, db)
-        return HTMLResponse('<span class="badge badge-synced">&#10003; Pushed to Technitium</span>')
+        return HTMLResponse('<span class="badge badge-synced">Pushed to Technitium</span>')
     except Exception as e:
-        return HTMLResponse(f'<span class="badge badge-error">&#10007; {e}</span>')
+        return HTMLResponse(f'<span class="badge badge-error">{e}</span>')
 
 
 # ── Block Lists ───────────────────────────────────────────────────────────────

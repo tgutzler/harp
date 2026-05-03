@@ -32,6 +32,7 @@ class Collection(SQLModel, table=True):
     description: Optional[str] = None
     subdomain: Optional[str] = None
     blocking_enabled: bool = Field(default=True)
+    block_as_nxdomain: bool = Field(default=True)
     sync_status: str = Field(default="pending")
     last_error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

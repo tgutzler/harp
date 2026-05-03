@@ -23,6 +23,9 @@ _SORT_KEYS = {
 }
 
 
+_VALID_FILTERS = {"error", "pending", "synced", "drift"}
+
+
 @router.get("")
 async def hosts_index(
     request: Request,
@@ -31,12 +34,15 @@ async def hosts_index(
     gs: GlobalSettings = Depends(get_global_settings),
     sort: str = "hostname",
     dir: str = "asc",
+    filter: str = "",
 ):
     ctx = await base_context(request, db)
 
-    result = await db.exec(
-        select(Host, Collection).join(Collection, Host.collection_id == Collection.id)
-    )
+    query = select(Host, Collection).join(Collection, Host.collection_id == Collection.id)
+    if filter in _VALID_FILTERS:
+        query = query.where(Host.sync_status == filter)
+
+    result = await db.exec(query)
     rows = []
     for host, collection in result.all():
         rows.append({
@@ -51,4 +57,5 @@ async def hosts_index(
     ctx["rows"] = rows
     ctx["sort"] = sort
     ctx["dir"] = dir
+    ctx["filter"] = filter
     return templates.TemplateResponse(request, "hosts/index.html", ctx)

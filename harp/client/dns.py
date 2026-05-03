@@ -46,6 +46,20 @@ async def delete_ptr_record(client: TechnitiumClient, ptr_domain: str, fqdn: str
             })
 
 
+async def delete_zone_if_empty(client: TechnitiumClient, zone: str) -> None:
+    """Delete a zone when only SOA/NS records remain (i.e. no user records)."""
+    response = await client._request("GET", "zones/records/get", params={
+        "domain": zone, "listZone": "true",
+    })
+    ignorable = {"SOA", "NS"}
+    has_records = any(
+        r.get("type") not in ignorable
+        for r in response.get("records", [])
+    )
+    if not has_records:
+        await client._request("POST", "zones/delete", params={"zone": zone})
+
+
 async def list_a_records(client: TechnitiumClient, zone: str) -> list[dict]:
     """Return [{fqdn, ip}] for all enabled A records in the zone."""
     response = await client._request("GET", "zones/records/get", params={

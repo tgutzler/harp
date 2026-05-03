@@ -7,3 +7,13 @@
   style="padding:0.2rem 0.6rem;font-size:0.85rem;margin:0">
   Blocking {% if collection.blocking_enabled %}on{% else %}off{% endif %}
 </button>
+<button
+  id="nxdomain-toggle-{{ collection.id }}"
+  hx-post="/collections/{{ collection.id }}/toggle-nxdomain"
+  hx-target="#nxdomain-toggle-{{ collection.id }}"
+  hx-swap="outerHTML"
+  class="outline {% if collection.block_as_nxdomain %}primary{% else %}secondary{% endif %}"
+  style="padding:0.2rem 0.6rem;font-size:0.85rem;margin:0"
+  title="Return NXDOMAIN for blocked queries instead of a blocked IP">
+  NXDomain {% if collection.block_as_nxdomain %}on{% else %}off{% endif %}
+</button>

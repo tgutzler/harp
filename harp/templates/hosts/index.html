@@ -15,6 +15,14 @@
   <a href="/collections/hosts/new" role="button" class="outline secondary">+ Add host</a>
 </div>
 
+<div class="filter-pills">
+  <a href="/hosts" class="filter-pill {% if not filter %}active{% endif %}">All</a>
+  <a href="/hosts?filter=error" class="filter-pill {% if filter == 'error' %}active{% endif %}">✗ Errors</a>
+  <a href="/hosts?filter=pending" class="filter-pill {% if filter == 'pending' %}active{% endif %}">Pending</a>
+  <a href="/hosts?filter=drift" class="filter-pill {% if filter == 'drift' %}active{% endif %}">⚠ Drifted</a>
+  <a href="/hosts?filter=synced" class="filter-pill {% if filter == 'synced' %}active{% endif %}">✓ Synced</a>
+</div>
+
 {% if rows %}
 <figure>
   <table>
@@ -38,10 +46,13 @@
         <td><code>{{ r.host.mac_address }}</code></td>
         <td><a href="/collections/{{ r.collection.id }}">{{ r.collection.name }}</a></td>
         <td>
-          <span class="badge badge-{{ r.host.sync_status }}"
-                {% if r.host.last_error %}title="{{ r.host.last_error }}"{% endif %}>
-            {{ r.host.sync_status }}
-          </span>
+          <span class="badge badge-{{ r.host.sync_status }}">{{ r.host.sync_status }}</span>
+          {% if r.host.last_error %}
+          <div class="sync-error" title="{{ r.host.last_error }}">
+            {% if "token" in r.host.last_error.lower() %}<a href="/profile">{{ r.host.last_error }}</a>
+            {% else %}{{ r.host.last_error }}{% endif %}
+          </div>
+          {% endif %}
         </td>
         <td style="white-space:nowrap">
           {% if r.host.sync_status != "synced" %}
@@ -74,6 +85,8 @@
     </tbody>
   </table>
 </figure>
+{% elif filter %}
+<p class="muted">No hosts with status "{{ filter }}".</p>
 {% else %}
 <p class="muted">No hosts yet. <a href="/collections/hosts/new">Add one</a> to get started.</p>
 {% endif %}

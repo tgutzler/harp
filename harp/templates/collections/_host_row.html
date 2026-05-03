@@ -7,10 +7,13 @@
   <td><a href="/collections/{{ collection.id }}">{{ collection.name }}</a></td>
   {% endif %}
   <td>
-    <span class="badge badge-{{ host.sync_status }}"
-          {% if host.last_error %}title="{{ host.last_error }}"{% endif %}>
-      {{ host.sync_status }}
-    </span>
+    <span class="badge badge-{{ host.sync_status }}">{{ host.sync_status }}</span>
+    {% if host.last_error %}
+    <div class="sync-error" title="{{ host.last_error }}">
+      {% if "token" in host.last_error.lower() %}<a href="/profile">{{ host.last_error }}</a>
+      {% else %}{{ host.last_error }}{% endif %}
+    </div>
+    {% endif %}
   </td>
   <td style="white-space:nowrap">
     {% if host.sync_status != "synced" %}

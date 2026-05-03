@@ -33,10 +33,9 @@ body.app-layout {
     font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-}
-
-.sidebar-header span {
-    color: var(--pico-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .sidebar nav {
@@ -211,6 +210,56 @@ body.standalone {
 .badge-block   { background: var(--color-error-bg);   color: var(--color-error-text); }
 .badge-allow   { background: var(--color-success-bg); color: var(--color-success-text); }
 
+.badge-synced::before  { content: "✓\00a0"; }
+.badge-error::before   { content: "✗\00a0"; }
+.badge-drift::before   { content: "⚠\00a0"; }
+
+/* Inline error detail below badge */
+.sync-error {
+    margin: 0.2rem 0 0;
+    font-size: 0.7rem;
+    color: var(--pico-muted-color);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.sync-error a {
+    color: inherit;
+    text-decoration: underline dotted;
+}
+
+/* Filter pills on hosts page */
+.filter-pills {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    border: 1px solid var(--pico-muted-border-color);
+    color: var(--pico-muted-color);
+    text-decoration: none;
+}
+
+.filter-pill:hover {
+    border-color: var(--pico-primary);
+    color: var(--pico-primary);
+}
+
+.filter-pill.active {
+    border-color: var(--pico-primary);
+    background: var(--pico-primary);
+    color: #fff;
+}
+
 /* ── Drift / discovery banner ────────────────────────── */
 
 .alert-banner {
@@ -231,6 +280,21 @@ body.standalone {
     color: inherit;
     font-weight: 500;
     text-decoration: underline;
+}
+
+/* ── Collection expand chevron ───────────────────────── */
+
+.chevron-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 0.3rem;
+    color: var(--pico-muted-color);
+    line-height: 1;
+}
+
+.chevron-btn:hover {
+    color: var(--pico-primary);
 }
 
 /* ── Utilities ───────────────────────────────────────── */

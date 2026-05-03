@@ -8,7 +8,7 @@ from .client.base import TechnitiumClient
 from .client.dhcp import add_reserved_lease, find_scope_for_ip, remove_reserved_lease
 from .client.dns import (
     add_a_record, add_ptr_record, delete_a_record,
-    delete_ptr_record, ensure_zone_exists,
+    delete_ptr_record, delete_zone_if_empty, ensure_zone_exists,
 )
 from .models import (
     BlockListSubscription, Collection, CollectionBlockList,
@@ -126,6 +126,12 @@ async def unsync_host(
             await coro
         except Exception:
             pass
+
+    reverse_zone = get_reverse_zone(ip)
+    try:
+        await delete_zone_if_empty(client, reverse_zone)
+    except Exception:
+        pass
 
     scope = await find_scope_for_ip(client, ip)
     if scope:

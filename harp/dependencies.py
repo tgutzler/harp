@@ -63,6 +63,7 @@ async def base_context(
 
     discovery_count = 0
     drift_count = 0
+    error_count = 0
     if user_id:
         disc_result = await db.exec(
             select(func.count(DiscoveredHost.id))
@@ -74,6 +75,11 @@ async def base_context(
             .where(Host.sync_status == "drift")
         )
         drift_count = drift_result.one()
+        error_result = await db.exec(
+            select(func.count(Host.id))
+            .where(Host.sync_status == "error")
+        )
+        error_count = error_result.one()
 
     flash = request.session.pop("flash", None)
 
@@ -85,6 +91,7 @@ async def base_context(
         "undo_tooltip": undo_tooltip,
         "discovery_count": discovery_count,
         "drift_count": drift_count,
+        "error_count": error_count,
         "flash": flash,
     }
 

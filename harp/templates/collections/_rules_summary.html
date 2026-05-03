@@ -1,0 +1,22 @@
+<div style="display:flex;gap:3rem;padding:0.5rem 0 0.75rem;font-size:0.85rem">
+  <div>
+    <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--pico-muted-color)">Block Lists</span>
+    {% if blocklists %}
+    <ul style="margin:0.25rem 0 0;padding:0;list-style:none">
+      {% for bl in blocklists %}<li>{{ bl.name }}</li>{% endfor %}
+    </ul>
+    {% else %}
+    <div class="muted" style="margin-top:0.25rem">None</div>
+    {% endif %}
+  </div>
+  <div>
+    <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--pico-muted-color)">Rule Sets</span>
+    {% if rulesets %}
+    <ul style="margin:0.25rem 0 0;padding:0;list-style:none">
+      {% for rs in rulesets %}<li>{{ rs.name }}</li>{% endfor %}
+    </ul>
+    {% else %}
+    <div class="muted" style="margin-top:0.25rem">None</div>
+    {% endif %}
+  </div>
+</div>

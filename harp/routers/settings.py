@@ -87,12 +87,12 @@ async def test_connection(
     user: User = Depends(require_auth),
 ):
     if not user.technitium_token_encrypted:
-        return '<span class="badge badge-error">&#10007; No API token saved — visit your profile</span>'
+        return '<span class="badge badge-error">No API token saved — visit your profile</span>'
 
     try:
         token = decrypt_token(user.technitium_token_encrypted, app_settings.secret_key)
     except ValueError as e:
-        return f'<span class="badge badge-error">&#10007; {e}</span>'
+        return f'<span class="badge badge-error">{e}</span>'
 
     async with httpx.AsyncClient(timeout=5.0) as http_client:
         client = TechnitiumClient(
@@ -103,5 +103,5 @@ async def test_connection(
         ok, message = await client.check_connection()
 
     if ok:
-        return f'<span class="badge badge-synced">&#10003; {message}</span>'
-    return f'<span class="badge badge-error">&#10007; {message}</span>'
+        return f'<span class="badge badge-synced">{message}</span>'
+    return f'<span class="badge badge-error">{message}</span>'

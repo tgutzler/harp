@@ -49,7 +49,7 @@ def build_config(current: dict, collections_data: list[dict]) -> dict:
             "name": name,
             "enableBlocking": collection.blocking_enabled,
             "allowTxtBlockingReport": True,
-            "blockAsNxDomain": False,
+            "blockAsNxDomain": collection.block_as_nxdomain,
             "blockingAddresses": [],
             "allowed": allowed,
             "blocked": blocked,

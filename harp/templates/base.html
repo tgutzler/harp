@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}HARP{% endblock %}</title>
+  <title>{% block title %}harp{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/harp.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
@@ -11,7 +12,10 @@
 <body class="app-layout">
 
   <aside class="sidebar">
-    <div class="sidebar-header">HA<span>RP</span></div>
+    <div class="sidebar-header" title="harp, your divine Host Address Registration Portal">
+      <img src="/static/harp.png" alt="harp" style="width:2rem;height:2rem;object-fit:contain">
+      harp
+    </div>
 
     <nav>
       <ul>
@@ -58,13 +62,16 @@
     <div class="flash {{ flash.type }}">{{ flash.message }}</div>
     {% endif %}
 
-    {% if drift_count > 0 or discovery_count > 0 %}
+    {% if error_count > 0 or drift_count > 0 or discovery_count > 0 %}
     <div class="alert-banner">
+      {% if error_count > 0 %}
+      <a href="/hosts?filter=error">✗ {{ error_count }} host{{ 's' if error_count != 1 else '' }} failed to sync →</a>
+      {% endif %}
       {% if drift_count > 0 %}
-      <span>⚠ {{ drift_count }} host{{ 's' if drift_count != 1 else '' }} drifted from DNS</span>
+      <a href="/hosts?filter=drift">⚠ {{ drift_count }} host{{ 's' if drift_count != 1 else '' }} drifted from DNS →</a>
       {% endif %}
       {% if discovery_count > 0 %}
-      <a href="/discovery">{{ discovery_count }} new host{{ 's' if discovery_count != 1 else '' }} discovered in Technitium →</a>
+      <a href="/discovery">{{ discovery_count }} new host{{ 's' if discovery_count != 1 else '' }} discovered →</a>
       {% endif %}
     </div>
     {% endif %}

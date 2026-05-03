@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Collections — HARP{% endblock %}
+{% block title %}Collections — harp{% endblock %}
 {% block content %}
 
 <div class="page-header">
@@ -18,6 +18,9 @@
   <table>
     <thead>
       <tr>
+        <th style="width:1.5rem">
+          <button class="chevron-btn" onclick="expandAllCollections()" title="Expand all">›</button>
+        </th>
         <th>Name</th>
         <th>Domain</th>
         <th>Subnets</th>
@@ -26,9 +29,13 @@
         <th></th>
       </tr>
     </thead>
-    <tbody>
-      {% for row in coll_data %}
-      <tr id="collection-{{ row.collection.id }}">
+    {% for row in coll_data %}
+    <tbody id="collection-{{ row.collection.id }}">
+      <tr>
+        <td style="padding-right:0">
+          <button class="chevron-btn" id="chevron-{{ row.collection.id }}"
+                  onclick="toggleCollectionDetail({{ row.collection.id }}, this)">›</button>
+        </td>
         <td><a href="/collections/{{ row.collection.id }}">{{ row.collection.name }}</a></td>
         <td><code>{% if row.collection.subdomain %}{{ row.collection.subdomain }}.{% endif %}{{ zone }}</code></td>
         <td>{% for sn in row.subnets %}<code>{{ sn.cidr }}</code>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
@@ -51,12 +58,63 @@
             style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
         </td>
       </tr>
-      {% endfor %}
+      <tr class="coll-detail-row" style="display:none">
+        <td></td>
+        <td colspan="6">
+          <div style="display:flex;gap:3rem;padding:0.4rem 0 0.6rem;font-size:0.85rem">
+            <div>
+              <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--pico-muted-color)">Block Lists</span>
+              {% if row.blocklists %}
+              <ul style="margin:0.25rem 0 0;padding:0;list-style:none">
+                {% for bl in row.blocklists %}<li>{{ bl.name }}</li>{% endfor %}
+              </ul>
+              {% else %}
+              <div class="muted" style="margin-top:0.25rem">None</div>
+              {% endif %}
+            </div>
+            <div>
+              <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--pico-muted-color)">Rule Sets</span>
+              {% if row.rulesets %}
+              <ul style="margin:0.25rem 0 0;padding:0;list-style:none">
+                {% for rs in row.rulesets %}<li>{{ rs.name }}</li>{% endfor %}
+              </ul>
+              {% else %}
+              <div class="muted" style="margin-top:0.25rem">None</div>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+      </tr>
     </tbody>
+    {% endfor %}
   </table>
 </figure>
 {% else %}
 <p class="muted">No collections yet. <a href="/collections/new">Create one</a> to get started.</p>
 {% endif %}
+
+<script>
+function toggleCollectionDetail(id, btn) {
+  const detailRow = btn.closest('tbody').querySelector('.coll-detail-row');
+  const isVisible = detailRow.style.display !== 'none';
+  detailRow.style.display = isVisible ? 'none' : '';
+  btn.textContent = isVisible ? '›' : '⌄';
+}
+
+function expandAllCollections() {
+  const rows = document.querySelectorAll('tbody .coll-detail-row');
+  const allExpanded = Array.from(rows).every(r => r.style.display !== 'none');
+  rows.forEach(detailRow => {
+    const btn = detailRow.closest('tbody').querySelector('.chevron-btn');
+    if (allExpanded) {
+      detailRow.style.display = 'none';
+      if (btn) btn.textContent = '›';
+    } else {
+      detailRow.style.display = '';
+      if (btn) btn.textContent = '⌄';
+    }
+  });
+}
+</script>
 
 {% endblock %}

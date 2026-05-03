@@ -97,7 +97,23 @@ async def collections_index(
             status = "synced"
         else:
             status = "no hosts"
-        coll_data.append({"collection": c, "subnets": sn.all(), "host_count": len(host_list), "status": status})
+
+        bl_links = await db.exec(select(CollectionBlockList).where(CollectionBlockList.collection_id == c.id))
+        bl_ids = [lnk.blocklist_id for lnk in bl_links.all()]
+        blocklists = (await db.exec(select(BlockListSubscription).where(BlockListSubscription.id.in_(bl_ids)))).all() if bl_ids else []
+
+        rs_links = await db.exec(select(CollectionRuleSet).where(CollectionRuleSet.collection_id == c.id))
+        rs_ids = [lnk.ruleset_id for lnk in rs_links.all()]
+        rulesets = (await db.exec(select(RuleSet).where(RuleSet.id.in_(rs_ids)))).all() if rs_ids else []
+
+        coll_data.append({
+            "collection": c,
+            "subnets": sn.all(),
+            "host_count": len(host_list),
+            "status": status,
+            "blocklists": blocklists,
+            "rulesets": rulesets,
+        })
 
     ctx["coll_data"] = coll_data
     ctx["zone"] = gs.zone
@@ -192,6 +208,31 @@ async def collection_detail(
     ctx["assigned_rulesets"] = assigned_rulesets
     ctx["available_rulesets"] = available_rulesets
     return templates.TemplateResponse(request, "collections/detail.html", ctx)
+
+
+@router.get("/{collection_id}/rules-summary", response_class=HTMLResponse)
+async def rules_summary(
+    request: Request,
+    collection_id: int,
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    bl_links = await db.exec(select(CollectionBlockList).where(CollectionBlockList.collection_id == collection_id))
+    bl_ids = [lnk.blocklist_id for lnk in bl_links.all()]
+    blocklists = []
+    if bl_ids:
+        blocklists = (await db.exec(select(BlockListSubscription).where(BlockListSubscription.id.in_(bl_ids)))).all()
+
+    rs_links = await db.exec(select(CollectionRuleSet).where(CollectionRuleSet.collection_id == collection_id))
+    rs_ids = [lnk.ruleset_id for lnk in rs_links.all()]
+    rulesets = []
+    if rs_ids:
+        rulesets = (await db.exec(select(RuleSet).where(RuleSet.id.in_(rs_ids)))).all()
+
+    return templates.TemplateResponse(request, "collections/_rules_summary.html", {
+        "blocklists": blocklists,
+        "rulesets": rulesets,
+    })
 
 
 @router.get("/{collection_id}/edit")
@@ -587,13 +628,41 @@ async def delete_host(
 
 # ── Blocking assignments ───────────────────────────────────────────────────────
 
-async def _sync_blocking_safe(request: Request, user: User, gs: GlobalSettings, db: AsyncSession) -> None:
+def _blocking_error_oob(error: Optional[str]) -> str:
+    """OOB swap HTML for the #blocking-sync-error div."""
+    if error:
+        inner = (
+            f'<span class="badge badge-error" title="{error}">blocking sync failed</span>'
+            f' <span class="sync-error">{error}</span>'
+        )
+    else:
+        inner = ""
+    return f'<div id="blocking-sync-error" hx-swap-oob="true" style="margin-bottom:0.75rem">{inner}</div>'
+
+
+def _render_with_blocking_error(template_name: str, ctx: dict, error: Optional[str]) -> HTMLResponse:
+    """Render a template synchronously and append the blocking-error OOB div."""
+    content = templates.get_template(template_name).render(ctx)
+    content += _blocking_error_oob(error)
+    return HTMLResponse(content)
+
+
+async def _sync_blocking_safe(request: Request, user: User, gs: GlobalSettings, db: AsyncSession) -> Optional[str]:
+    """Returns error message if blocking sync fails, else None."""
     client = await _try_client(request, user, gs)
-    if client:
-        try:
-            await sync_blocking(client, db)
-        except Exception:
-            pass
+    if not client:
+        return None
+    try:
+        await sync_blocking(client, db)
+        return None
+    except TechnitiumUnavailable as e:
+        return f"Cannot reach Technitium: {e}"
+    except TechnitiumInvalidToken:
+        return "Invalid API token"
+    except TechnitiumAPIError as e:
+        return e.message
+    except Exception as e:
+        return str(e)
 
 
 @router.post("/{collection_id}/blocklists", response_class=HTMLResponse)
@@ -615,13 +684,17 @@ async def assign_blocklist(
         .where(CollectionBlockList.collection_id == collection_id)
         .where(CollectionBlockList.blocklist_id == blocklist_id)
     )
+    sync_error = None
     if not existing.first():
         db.add(CollectionBlockList(collection_id=collection_id, blocklist_id=blocklist_id))
         await db.commit()
-        await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, user, gs, db)
 
-    ctx = {"bl": bl, "collection_id": collection_id}
-    return templates.TemplateResponse(request, "collections/_blocklist_item.html", ctx)
+    return _render_with_blocking_error(
+        "collections/_blocklist_item.html",
+        {"request": request, "bl": bl, "collection_id": collection_id},
+        sync_error,
+    )
 
 
 @router.delete("/{collection_id}/blocklists/{bl_id}", response_class=HTMLResponse)
@@ -639,11 +712,13 @@ async def unassign_blocklist(
         .where(CollectionBlockList.blocklist_id == bl_id)
     )
     link = result.first()
+    sync_error = None
     if link:
         await db.delete(link)
         await db.commit()
-        await _sync_blocking_safe(request, user, gs, db)
-    return HTMLResponse("")
+        sync_error = await _sync_blocking_safe(request, user, gs, db)
+    oob = _blocking_error_oob(sync_error)
+    return HTMLResponse(oob)
 
 
 @router.post("/{collection_id}/rulesets", response_class=HTMLResponse)
@@ -665,13 +740,17 @@ async def assign_ruleset(
         .where(CollectionRuleSet.collection_id == collection_id)
         .where(CollectionRuleSet.ruleset_id == ruleset_id)
     )
+    sync_error = None
     if not existing.first():
         db.add(CollectionRuleSet(collection_id=collection_id, ruleset_id=ruleset_id))
         await db.commit()
-        await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, user, gs, db)
 
-    ctx = {"rs": rs, "collection_id": collection_id}
-    return templates.TemplateResponse(request, "collections/_ruleset_item.html", ctx)
+    return _render_with_blocking_error(
+        "collections/_ruleset_item.html",
+        {"request": request, "rs": rs, "collection_id": collection_id},
+        sync_error,
+    )
 
 
 @router.delete("/{collection_id}/rulesets/{rs_id}", response_class=HTMLResponse)
@@ -689,11 +768,13 @@ async def unassign_ruleset(
         .where(CollectionRuleSet.ruleset_id == rs_id)
     )
     link = result.first()
+    sync_error = None
     if link:
         await db.delete(link)
         await db.commit()
-        await _sync_blocking_safe(request, user, gs, db)
-    return HTMLResponse("")
+        sync_error = await _sync_blocking_safe(request, user, gs, db)
+    oob = _blocking_error_oob(sync_error)
+    return HTMLResponse(oob)
 
 
 @router.post("/{collection_id}/toggle-blocking", response_class=HTMLResponse)
@@ -710,7 +791,31 @@ async def toggle_blocking(
     collection.blocking_enabled = not collection.blocking_enabled
     db.add(collection)
     await db.commit()
-    await _sync_blocking_safe(request, user, gs, db)
-    return templates.TemplateResponse(request, "collections/_blocking_toggle.html", {
-        "collection": collection,
-    })
+    sync_error = await _sync_blocking_safe(request, user, gs, db)
+    return _render_with_blocking_error(
+        "collections/_blocking_toggle.html",
+        {"request": request, "collection": collection},
+        sync_error,
+    )
+
+
+@router.post("/{collection_id}/toggle-nxdomain", response_class=HTMLResponse)
+async def toggle_nxdomain(
+    request: Request,
+    collection_id: int,
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    collection = await db.get(Collection, collection_id)
+    if not collection:
+        return HTMLResponse("", status_code=404)
+    collection.block_as_nxdomain = not collection.block_as_nxdomain
+    db.add(collection)
+    await db.commit()
+    sync_error = await _sync_blocking_safe(request, user, gs, db)
+    return _render_with_blocking_error(
+        "collections/_blocking_toggle.html",
+        {"request": request, "collection": collection},
+        sync_error,
+    )
