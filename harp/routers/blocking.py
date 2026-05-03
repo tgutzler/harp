@@ -51,6 +51,25 @@ async def _sync_safe(request: Request, user: User, gs: GlobalSettings, db: Async
             pass
 
 
+# ── Manual sync ──────────────────────────────────────────────────────────────
+
+@router.post("/sync", response_class=HTMLResponse)
+async def manual_sync(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_auth),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    client = await _try_client(request, user, gs)
+    if not client:
+        return HTMLResponse('<span class="badge badge-error">No API token configured — visit your profile.</span>')
+    try:
+        await sync_blocking(client, db)
+        return HTMLResponse('<span class="badge badge-synced">&#10003; Pushed to Technitium</span>')
+    except Exception as e:
+        return HTMLResponse(f'<span class="badge badge-error">&#10007; {e}</span>')
+
+
 # ── Block Lists ───────────────────────────────────────────────────────────────
 
 @router.get("/lists")
