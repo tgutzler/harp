@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .config import settings
 from .database import create_db_tables, engine
 from .exceptions import NotAuthenticated
-from .routers import auth, collections, discovery, hosts, settings as settings_router
+from .routers import auth, collections, discovery, hosts, settings as settings_router, undo
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(discovery.router)
     app.include_router(hosts.router)
     app.include_router(settings_router.router)
+    app.include_router(undo.router)
 
     @app.exception_handler(NotAuthenticated)
     async def not_authenticated(_request: Request, _exc: NotAuthenticated):

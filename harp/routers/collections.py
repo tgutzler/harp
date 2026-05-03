@@ -15,6 +15,7 @@ from ..crypto import decrypt_token
 from ..database import get_db
 from ..dependencies import base_context, get_global_settings, require_auth
 from ..exceptions import TechnitiumAPIError, TechnitiumInvalidToken, TechnitiumUnavailable
+from ..changelog import collection_snapshot, host_snapshot, log_change
 from ..models import Collection, CollectionSubnet, GlobalSettings, Host, User
 from ..sync import build_fqdn, sync_host, unsync_host
 
@@ -129,9 +130,15 @@ async def create_collection(
     db.add(collection)
     await db.flush()
 
-    for cidr in _parse_subnets(subnets_text):
+    subnets = _parse_subnets(subnets_text)
+    for cidr in subnets:
         db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
 
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "collection", collection.id, "create",
+                         after_state={"name": collection.name, "description": collection.description,
+                                      "subdomain": collection.subdomain, "subnets": subnets})
     await db.commit()
     return RedirectResponse(f"/collections/{collection.id}", 303)
 
@@ -195,18 +202,27 @@ async def update_collection(
     if not collection:
         return RedirectResponse("/collections", 303)
 
+    existing_subnets = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
+    before = collection_snapshot(collection, existing_subnets.all())
+
     old_subdomain = collection.subdomain
     collection.name = name.strip()
     collection.description = description.strip() or None
     collection.subdomain = subdomain.strip().lower() or None
 
-    # Replace subnets
+    new_subnets = _parse_subnets(subnets_text)
     existing = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
     for sn in existing.all():
         await db.delete(sn)
-    for cidr in _parse_subnets(subnets_text):
+    for cidr in new_subnets:
         db.add(CollectionSubnet(collection_id=collection_id, cidr=cidr))
 
+    session_id = request.session.get("session_id")
+    if session_id:
+        after = {"name": collection.name, "description": collection.description,
+                 "subdomain": collection.subdomain, "subnets": new_subnets}
+        await log_change(db, session_id, "collection", collection.id, "update",
+                         before_state=before, after_state=after)
     db.add(collection)
     await db.commit()
 
@@ -238,6 +254,10 @@ async def delete_collection(
     if not collection:
         return HTMLResponse("")
 
+    subnets_result = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
+    subnets = subnets_result.all()
+    before = collection_snapshot(collection, subnets)
+
     client = await _try_client(request, user, gs)
     hosts = await db.exec(select(Host).where(Host.collection_id == collection_id))
     for host in hosts.all():
@@ -245,10 +265,12 @@ async def delete_collection(
             await unsync_host(client, host.hostname, host.ip_address, host.mac_address, collection.subdomain, gs.zone)
         await db.delete(host)
 
-    subnets = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
-    for sn in subnets.all():
+    for sn in subnets:
         await db.delete(sn)
 
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "collection", collection.id, "delete", before_state=before)
     await db.delete(collection)
     await db.commit()
     return HTMLResponse("")
@@ -308,6 +330,9 @@ async def create_host_global(
         host.last_error = "No API token configured"
 
     db.add(host)
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "host", host.id, "create", after_state=host_snapshot(host))
     await db.commit()
 
     return RedirectResponse(f"/collections/{collection_id}", 303)
@@ -350,6 +375,9 @@ async def add_host(
         host.last_error = "No API token configured"
 
     db.add(host)
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "host", host.id, "create", after_state=host_snapshot(host))
     await db.commit()
     await db.refresh(host)
 
@@ -421,6 +449,8 @@ async def update_host(
     if not host or not collection or host.collection_id != collection_id:
         return HTMLResponse("")
 
+    before = host_snapshot(host)
+
     client = await _try_client(request, user, gs)
     if client:
         await unsync_host(client, host.hostname, host.ip_address, host.mac_address, collection.subdomain, gs.zone)
@@ -438,6 +468,10 @@ async def update_host(
         host.last_error = "No API token configured"
 
     db.add(host)
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "host", host.id, "update",
+                         before_state=before, after_state=host_snapshot(host))
     await db.commit()
     await db.refresh(host)
 
@@ -501,11 +535,15 @@ async def delete_host(
     if not host or host.collection_id != collection_id:
         return HTMLResponse("")
 
+    before = host_snapshot(host)
     collection = await db.get(Collection, collection_id)
     client = await _try_client(request, user, gs)
     if client and collection:
         await unsync_host(client, host.hostname, host.ip_address, host.mac_address, collection.subdomain, gs.zone)
 
+    session_id = request.session.get("session_id")
+    if session_id:
+        await log_change(db, session_id, "host", host.id, "delete", before_state=before)
     await db.delete(host)
     await db.commit()
     return HTMLResponse("")
