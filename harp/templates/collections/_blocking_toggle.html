@@ -1,0 +1,9 @@
+<button
+  id="blocking-toggle-{{ collection.id }}"
+  hx-post="/collections/{{ collection.id }}/toggle-blocking"
+  hx-target="#blocking-toggle-{{ collection.id }}"
+  hx-swap="outerHTML"
+  class="outline {% if collection.blocking_enabled %}primary{% else %}secondary{% endif %}"
+  style="padding:0.2rem 0.6rem;font-size:0.85rem;margin:0">
+  Blocking {% if collection.blocking_enabled %}on{% else %}off{% endif %}
+</button>

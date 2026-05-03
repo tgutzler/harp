@@ -31,6 +31,7 @@ class Collection(SQLModel, table=True):
     name: str = Field(index=True)
     description: Optional[str] = None
     subdomain: Optional[str] = None
+    blocking_enabled: bool = Field(default=True)
     sync_status: str = Field(default="pending")
     last_error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

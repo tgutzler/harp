@@ -40,5 +40,6 @@ def collection_snapshot(collection: Collection, subnets: list) -> dict:
         "name": collection.name,
         "description": collection.description,
         "subdomain": collection.subdomain,
+        "blocking_enabled": collection.blocking_enabled,
         "subnets": [sn.cidr for sn in subnets],
     }

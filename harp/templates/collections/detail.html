@@ -7,7 +7,8 @@
     <p class="muted" style="margin:0 0 0.25rem"><a href="/collections">Collections</a> ›</p>
     <h2 style="margin:0">{{ collection.name }}</h2>
   </div>
-  <div style="display:flex;gap:0.5rem">
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    {% include "collections/_blocking_toggle.html" %}
     <a href="/collections/hosts/new?collection_id={{ collection.id }}" role="button" class="outline secondary">+ Add host</a>
     <a href="/collections/{{ collection.id }}/edit" role="button" class="outline secondary">Edit</a>
   </div>
@@ -103,8 +104,8 @@
           hx-target="#col-blocklists-{{ collection.id }}"
           hx-swap="beforeend"
           hx-on::after-request="this.reset()">
-      <div style="display:flex;gap:0.5rem;align-items:center">
-        <select name="blocklist_id" style="margin:0;flex:1">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:0.5rem;align-items:center">
+        <select name="blocklist_id" style="margin:0;min-width:0">
           {% for bl in available_blocklists %}
           <option value="{{ bl.id }}">{{ bl.name }}</option>
           {% endfor %}
@@ -130,8 +131,8 @@
           hx-target="#col-rulesets-{{ collection.id }}"
           hx-swap="beforeend"
           hx-on::after-request="this.reset()">
-      <div style="display:flex;gap:0.5rem;align-items:center">
-        <select name="ruleset_id" style="margin:0;flex:1">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:0.5rem;align-items:center">
+        <select name="ruleset_id" style="margin:0;min-width:0">
           {% for rs in available_rulesets %}
           <option value="{{ rs.id }}">{{ rs.name }}</option>
           {% endfor %}

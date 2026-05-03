@@ -21,42 +21,33 @@ async def set_config(tc: TechnitiumClient, config: dict) -> None:
     )
 
 
-def _group_name(collection) -> str:
-    return collection.subdomain or f"collection_{collection.id}"
-
-
 def build_config(current: dict, collections_data: list[dict]) -> dict:
     """
-    Rebuild the Advanced Blocking config from HARP collection data.
-    Preserves groups and networkGroupMap entries that HARP does not manage.
+    Rebuilds the entire Advanced Blocking config from HARP collections.
+    All groups and networkGroupMap entries are replaced — nothing from
+    the existing Technitium config is preserved.
 
     collections_data items: {
         "collection": Collection,
         "subnets": list[CollectionSubnet],
-        "blocklists": list[BlockListSubscription],  # enabled only
+        "blocklists": list[BlockListSubscription],
         "rules": list[CustomRule],
     }
     """
-    harp_group_names: set[str] = set()
-    new_groups: list[dict] = []
-    new_network_map: dict[str, str] = {}
+    groups: list[dict] = []
+    network_map: dict[str, str] = {}
 
     for item in collections_data:
         collection = item["collection"]
-        subnets = item["subnets"]
-        if not subnets:
-            continue
-
-        name = _group_name(collection)
-        harp_group_names.add(name)
+        name = collection.name
 
         block_list_urls = [bl.url for bl in item["blocklists"] if bl.enabled]
         allowed = [r.domain for r in item["rules"] if r.action == "allow"]
         blocked = [r.domain for r in item["rules"] if r.action == "block"]
 
-        new_groups.append({
+        groups.append({
             "name": name,
-            "enableBlocking": True,
+            "enableBlocking": collection.blocking_enabled,
             "allowTxtBlockingReport": True,
             "blockAsNxDomain": False,
             "blockingAddresses": [],
@@ -71,23 +62,13 @@ def build_config(current: dict, collections_data: list[dict]) -> dict:
             "adblockListUrls": [],
         })
 
-        for sn in subnets:
-            new_network_map[sn.cidr] = name
-
-    preserved_groups = [
-        g for g in current.get("groups", [])
-        if g.get("name") not in harp_group_names
-    ]
-    preserved_network_map = {
-        cidr: grp
-        for cidr, grp in current.get("networkGroupMap", {}).items()
-        if grp not in harp_group_names
-    }
+        for sn in item["subnets"]:
+            network_map[sn.cidr] = name
 
     return {
         **current,
-        "groups": preserved_groups + new_groups,
-        "networkGroupMap": {**preserved_network_map, **new_network_map},
+        "groups": groups,
+        "networkGroupMap": network_map,
     }
 
 

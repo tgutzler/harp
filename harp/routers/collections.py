@@ -16,7 +16,6 @@ from ..database import get_db
 from ..dependencies import base_context, get_global_settings, require_auth
 from ..exceptions import TechnitiumAPIError, TechnitiumInvalidToken, TechnitiumUnavailable
 from ..changelog import collection_snapshot, host_snapshot, log_change
-from ..client import blocking as blocking_client
 from ..models import (
     BlockListSubscription, Collection, CollectionBlockList,
     CollectionRuleSet, CollectionSubnet, GlobalSettings, Host, RuleSet, User,
@@ -125,11 +124,13 @@ async def create_collection(
     description: str = Form(""),
     subdomain: str = Form(""),
     subnets_text: str = Form(""),
+    blocking_enabled: str = Form("on"),
 ):
     collection = Collection(
         name=name.strip(),
         description=description.strip() or None,
         subdomain=subdomain.strip().lower() or None,
+        blocking_enabled=blocking_enabled == "on",
     )
     db.add(collection)
     await db.flush()
@@ -142,97 +143,10 @@ async def create_collection(
     if session_id:
         await log_change(db, session_id, "collection", collection.id, "create",
                          after_state={"name": collection.name, "description": collection.description,
-                                      "subdomain": collection.subdomain, "subnets": subnets})
+                                      "subdomain": collection.subdomain,
+                                      "blocking_enabled": collection.blocking_enabled, "subnets": subnets})
     await db.commit()
     return RedirectResponse(f"/collections/{collection.id}", 303)
-
-
-# ── Import from Advanced Blocking ────────────────────────────────────────────
-
-@router.post("/import-blocking", response_class=HTMLResponse)
-async def import_from_blocking(
-    request: Request,
-    user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-    gs: GlobalSettings = Depends(get_global_settings),
-):
-    client = await _try_client(request, user, gs)
-    if not client:
-        return HTMLResponse('<p class="badge badge-error">No API token configured — visit your profile.</p>')
-
-    try:
-        config = await blocking_client.get_config(client)
-    except Exception as e:
-        return HTMLResponse(f'<p class="badge badge-error">Could not read Advanced Blocking config: {e}</p>')
-
-    groups: list[dict] = config.get("groups", [])
-    if not groups:
-        return HTMLResponse('<p class="muted">No groups found in Advanced Blocking config.</p>')
-
-    # Build reverse map: group_name → [cidr, ...]
-    subnets_for: dict[str, list[str]] = {}
-    for cidr, group_name in config.get("networkGroupMap", {}).items():
-        subnets_for.setdefault(group_name, []).append(cidr)
-
-    # Load existing collections for matching
-    existing_collections = (await db.exec(select(Collection))).all()
-    by_subdomain: dict[str, Collection] = {c.subdomain: c for c in existing_collections if c.subdomain}
-    by_id_key: dict[str, Collection] = {f"collection_{c.id}": c for c in existing_collections}
-
-    existing_subnets = (await db.exec(select(CollectionSubnet))).all()
-    existing_cidrs: set[tuple[int, str]] = {(s.collection_id, s.cidr) for s in existing_subnets}
-
-    created_collections: list[str] = []
-    updated_collections: list[tuple[str, list[str]]] = []  # (name, new_cidrs)
-
-    for group in groups:
-        group_name: str = group.get("name", "")
-        if not group_name:
-            continue
-
-        collection = by_subdomain.get(group_name) or by_id_key.get(group_name)
-
-        if not collection:
-            collection = Collection(name=group_name, subdomain=group_name)
-            db.add(collection)
-            await db.flush()
-            created_collections.append(group_name)
-            # Update lookups so later groups don't create duplicates
-            by_subdomain[group_name] = collection
-            by_id_key[f"collection_{collection.id}"] = collection
-
-        cidrs = subnets_for.get(group_name, [])
-        new_cidrs: list[str] = []
-        for cidr in cidrs:
-            if (collection.id, cidr) not in existing_cidrs:
-                db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
-                existing_cidrs.add((collection.id, cidr))
-                new_cidrs.append(cidr)
-
-        if new_cidrs and group_name not in created_collections:
-            updated_collections.append((collection.name, new_cidrs))
-
-    await db.commit()
-
-    lines: list[str] = []
-    if created_collections:
-        lines.append(f"<strong>Created {len(created_collections)} collection(s):</strong>")
-        lines.append("<ul>" + "".join(
-            f"<li><a href='/collections'>{name}</a>"
-            + (f" — subnets: {', '.join('<code>' + c + '</code>' for c in subnets_for.get(name, []))}" if subnets_for.get(name) else " — no subnets in networkGroupMap")
-            + "</li>"
-            for name in created_collections
-        ) + "</ul>")
-    if updated_collections:
-        lines.append(f"<strong>Added subnets to {len(updated_collections)} existing collection(s):</strong>")
-        lines.append("<ul>" + "".join(
-            f"<li>{name}: {', '.join('<code>' + c + '</code>' for c in cidrs)}</li>"
-            for name, cidrs in updated_collections
-        ) + "</ul>")
-    if not lines:
-        lines.append("<span class='muted'>All groups already present — nothing to import.</span>")
-
-    return HTMLResponse("".join(lines))
 
 
 # ── Collection detail ─────────────────────────────────────────────────────────
@@ -309,6 +223,7 @@ async def update_collection(
     description: str = Form(""),
     subdomain: str = Form(""),
     subnets_text: str = Form(""),
+    blocking_enabled: str = Form("on"),
 ):
     collection = await db.get(Collection, collection_id)
     if not collection:
@@ -321,6 +236,7 @@ async def update_collection(
     collection.name = name.strip()
     collection.description = description.strip() or None
     collection.subdomain = subdomain.strip().lower() or None
+    collection.blocking_enabled = blocking_enabled == "on"
 
     new_subnets = _parse_subnets(subnets_text)
     existing = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
@@ -778,3 +694,23 @@ async def unassign_ruleset(
         await db.commit()
         await _sync_blocking_safe(request, user, gs, db)
     return HTMLResponse("")
+
+
+@router.post("/{collection_id}/toggle-blocking", response_class=HTMLResponse)
+async def toggle_blocking(
+    request: Request,
+    collection_id: int,
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    collection = await db.get(Collection, collection_id)
+    if not collection:
+        return HTMLResponse("", status_code=404)
+    collection.blocking_enabled = not collection.blocking_enabled
+    db.add(collection)
+    await db.commit()
+    await _sync_blocking_safe(request, user, gs, db)
+    return templates.TemplateResponse(request, "collections/_blocking_toggle.html", {
+        "collection": collection,
+    })

@@ -34,6 +34,12 @@
     <small class="muted">One CIDR per line. Used to match DHCP scopes and for display only.</small>
   </label>
 
+  <label style="display:flex;align-items:center;gap:0.5rem;width:fit-content">
+    <input type="checkbox" name="blocking_enabled" value="on" role="switch"
+           {% if not collection or collection.blocking_enabled %}checked{% endif %}>
+    Enable blocking for this collection
+  </label>
+
   <button type="submit">{% if collection %}Save changes{% else %}Create collection{% endif %}</button>
 </form>
 

@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, text
 
 from .config import settings
 
@@ -16,6 +16,12 @@ async_session_factory = async_sessionmaker(
 async def create_db_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE collection ADD COLUMN blocking_enabled BOOLEAN NOT NULL DEFAULT 1"
+            ))
+        except Exception:
+            pass  # column already exists
 
 
 async def get_db():
