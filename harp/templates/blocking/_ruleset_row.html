@@ -1,0 +1,13 @@
+<tr id="ruleset-{{ rs.id }}">
+  <td><a href="/blocking/rulesets/{{ rs.id }}">{{ rs.name }}</a></td>
+  <td>{{ count }}</td>
+  <td>
+    <button
+      hx-delete="/blocking/rulesets/{{ rs.id }}"
+      hx-target="#ruleset-{{ rs.id }}"
+      hx-swap="outerHTML swap:300ms"
+      hx-confirm="Delete rule set '{{ rs.name }}' and all its rules?"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+  </td>
+</tr>

@@ -208,6 +208,8 @@ body.standalone {
 .badge-pending { background: var(--color-warning-bg); color: var(--color-warning-text); }
 .badge-error   { background: var(--color-error-bg);   color: var(--color-error-text); }
 .badge-drift   { background: #e0e7ff; color: #3730a3; }
+.badge-block   { background: var(--color-error-bg);   color: var(--color-error-text); }
+.badge-allow   { background: var(--color-success-bg); color: var(--color-success-text); }
 
 /* ── Drift / discovery banner ────────────────────────── */
 

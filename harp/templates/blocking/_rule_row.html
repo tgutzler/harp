@@ -1,0 +1,13 @@
+<tr id="rule-{{ rule.id }}">
+  <td><code>{{ rule.domain }}</code></td>
+  <td><span class="badge badge-{{ rule.action }}">{{ rule.action }}</span></td>
+  <td>
+    <button
+      hx-delete="/blocking/rulesets/{{ ruleset_id }}/rules/{{ rule.id }}"
+      hx-target="#rule-{{ rule.id }}"
+      hx-swap="outerHTML swap:300ms"
+      hx-confirm="Delete rule for '{{ rule.domain }}'?"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+  </td>
+</tr>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Rule Sets — HARP{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Rule Sets</h2>
+</div>
+
+<details open style="margin-bottom:1.5rem">
+  <summary>Add rule set</summary>
+  <form hx-post="/blocking/rulesets" hx-target="#rulesets-tbody" hx-swap="beforeend"
+        hx-on::after-request="this.reset()" style="margin-top:0.75rem">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:0.5rem;align-items:end;max-width:28rem">
+      <label style="margin:0">
+        Name
+        <input type="text" name="name" placeholder="My custom rules" required>
+      </label>
+      <button type="submit" style="margin-bottom:0.1rem">Add</button>
+    </div>
+  </form>
+</details>
+
+<figure>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Rules</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rulesets-tbody">
+      {% for rs in rulesets %}
+      {% set count = counts.get(rs.id, 0) %}
+      {% include "blocking/_ruleset_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% if not rulesets %}
+<p class="muted">No rule sets yet.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,23 @@
+<tr id="blocklist-{{ entry.id }}">
+  <td>{{ entry.name }}</td>
+  <td><a href="{{ entry.url }}" target="_blank" rel="noopener" class="muted" style="font-size:0.85rem;word-break:break-all">{{ entry.url }}</a></td>
+  <td>
+    <button
+      hx-post="/blocking/lists/{{ entry.id }}/toggle"
+      hx-target="#blocklist-{{ entry.id }}"
+      hx-swap="outerHTML"
+      class="outline {% if entry.enabled %}primary{% else %}secondary{% endif %}"
+      style="padding:0.15rem 0.6rem;font-size:0.8rem;margin:0">
+      {% if entry.enabled %}on{% else %}off{% endif %}
+    </button>
+  </td>
+  <td>
+    <button
+      hx-delete="/blocking/lists/{{ entry.id }}"
+      hx-target="#blocklist-{{ entry.id }}"
+      hx-swap="outerHTML swap:300ms"
+      hx-confirm="Delete '{{ entry.name }}'?"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+  </td>
+</tr>

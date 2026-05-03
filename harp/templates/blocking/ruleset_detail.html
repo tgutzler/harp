@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ rs.name }} — HARP{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>{{ rs.name }}</h2>
+  <a href="/blocking/rulesets" class="outline secondary" role="button">← Rule Sets</a>
+</div>
+
+<details open style="margin-bottom:1.5rem">
+  <summary>Add rule</summary>
+  <form hx-post="/blocking/rulesets/{{ rs.id }}/rules" hx-target="#rules-tbody" hx-swap="beforeend"
+        hx-on::after-request="this.reset()" style="margin-top:0.75rem">
+    <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:0.5rem;align-items:end;max-width:36rem">
+      <label style="margin:0">
+        Domain
+        <input type="text" name="domain" placeholder="ads.example.com" required>
+      </label>
+      <label style="margin:0">
+        Action
+        <select name="action">
+          <option value="block">block</option>
+          <option value="allow">allow</option>
+        </select>
+      </label>
+      <button type="submit" style="margin-bottom:0.1rem">Add</button>
+    </div>
+  </form>
+</details>
+
+<figure>
+  <table>
+    <thead>
+      <tr>
+        <th>Domain</th>
+        <th>Action</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rules-tbody">
+      {% for rule in rules %}
+      {% include "blocking/_rule_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% if not rules %}
+<p class="muted" id="rules-empty">No rules yet. Add one above.</p>
+{% endif %}
+
+{% endblock %}

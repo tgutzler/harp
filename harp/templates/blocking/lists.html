@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Block Lists — HARP{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Block Lists</h2>
+</div>
+
+<details open style="margin-bottom:1.5rem">
+  <summary>Add block list</summary>
+  <form hx-post="/blocking/lists" hx-target="#lists-tbody" hx-swap="beforeend"
+        hx-on::after-request="this.reset()" style="margin-top:0.75rem">
+    <div style="display:grid;grid-template-columns:1fr 2fr auto;gap:0.5rem;align-items:end">
+      <label style="margin:0">
+        Name
+        <input type="text" name="name" placeholder="EasyList" required>
+      </label>
+      <label style="margin:0">
+        URL
+        <input type="url" name="url" placeholder="https://easylist.to/easylist/easylist.txt" required>
+      </label>
+      <button type="submit" style="margin-bottom:0.1rem">Add</button>
+    </div>
+  </form>
+</details>
+
+<figure>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>URL</th>
+        <th>Enabled</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="lists-tbody">
+      {% for entry in lists %}
+      {% include "blocking/_list_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% if not lists %}
+<p class="muted" id="lists-empty">No block lists yet.</p>
+{% endif %}
+
+{% endblock %}
