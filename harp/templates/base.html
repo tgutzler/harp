@@ -43,7 +43,7 @@
           <button type="submit" class="outline secondary" style="padding:0.1rem 0.5rem;font-size:0.8rem;margin:0">Logout</button>
         </form>
       </div>
-      <div id="undo-bar" hx-get="/undo/count" hx-trigger="every 3s" hx-swap="outerHTML">
+      <div id="undo-bar" hx-get="/undo/count" hx-trigger="undoUpdated from:body" hx-swap="outerHTML">
         {% if undo_count > 0 %}
         <button
           hx-post="/undo"

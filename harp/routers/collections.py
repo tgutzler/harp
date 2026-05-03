@@ -273,7 +273,7 @@ async def delete_collection(
         await log_change(db, session_id, "collection", collection.id, "delete", before_state=before)
     await db.delete(collection)
     await db.commit()
-    return HTMLResponse("")
+    return HTMLResponse("", headers={"HX-Trigger": "undoUpdated"})
 
 
 # ── Quick-add host (collection picker) ───────────────────────────────────────
@@ -386,7 +386,7 @@ async def add_host(
         "host": host,
         "collection": collection,
         "fqdn": fqdn,
-    })
+    }, headers={"HX-Trigger": "undoUpdated"})
 
 
 @router.get("/{collection_id}/hosts/{host_id}/row", response_class=HTMLResponse)
@@ -479,7 +479,7 @@ async def update_host(
     return templates.TemplateResponse(request, "collections/_host_row.html", {
         "host": host, "collection": collection, "fqdn": fqdn,
         "show_collection": show_collection.lower() == "true",
-    })
+    }, headers={"HX-Trigger": "undoUpdated"})
 
 
 @router.post("/{collection_id}/hosts/{host_id}/sync", response_class=HTMLResponse)
@@ -546,4 +546,4 @@ async def delete_host(
         await log_change(db, session_id, "host", host.id, "delete", before_state=before)
     await db.delete(host)
     await db.commit()
-    return HTMLResponse("")
+    return HTMLResponse("", headers={"HX-Trigger": "undoUpdated"})
