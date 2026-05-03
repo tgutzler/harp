@@ -16,8 +16,11 @@ from ..database import get_db
 from ..dependencies import base_context, get_global_settings, require_auth
 from ..exceptions import TechnitiumAPIError, TechnitiumInvalidToken, TechnitiumUnavailable
 from ..changelog import collection_snapshot, host_snapshot, log_change
-from ..models import Collection, CollectionSubnet, GlobalSettings, Host, User
-from ..sync import build_fqdn, sync_host, unsync_host
+from ..models import (
+    BlockListSubscription, Collection, CollectionBlockList,
+    CollectionRuleSet, CollectionSubnet, GlobalSettings, Host, RuleSet, User,
+)
+from ..sync import build_fqdn, sync_blocking, sync_host, unsync_host
 
 router = APIRouter(prefix="/collections")
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -161,10 +164,29 @@ async def collection_detail(
     sn = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
     hosts = await db.exec(select(Host).where(Host.collection_id == collection_id).order_by(Host.hostname))
 
+    # Blocking assignments
+    bl_links = await db.exec(select(CollectionBlockList).where(CollectionBlockList.collection_id == collection_id))
+    assigned_bl_ids = {l.blocklist_id for l in bl_links.all()}
+    all_bl = await db.exec(select(BlockListSubscription).order_by(BlockListSubscription.name))
+    all_bl_list = all_bl.all()
+    assigned_blocklists = [b for b in all_bl_list if b.id in assigned_bl_ids]
+    available_blocklists = [b for b in all_bl_list if b.id not in assigned_bl_ids]
+
+    rs_links = await db.exec(select(CollectionRuleSet).where(CollectionRuleSet.collection_id == collection_id))
+    assigned_rs_ids = {l.ruleset_id for l in rs_links.all()}
+    all_rs = await db.exec(select(RuleSet).order_by(RuleSet.name))
+    all_rs_list = all_rs.all()
+    assigned_rulesets = [r for r in all_rs_list if r.id in assigned_rs_ids]
+    available_rulesets = [r for r in all_rs_list if r.id not in assigned_rs_ids]
+
     ctx["collection"] = collection
     ctx["subnets"] = sn.all()
     ctx["hosts"] = hosts.all()
     ctx["zone"] = gs.zone
+    ctx["assigned_blocklists"] = assigned_blocklists
+    ctx["available_blocklists"] = available_blocklists
+    ctx["assigned_rulesets"] = assigned_rulesets
+    ctx["available_rulesets"] = available_rulesets
     return templates.TemplateResponse(request, "collections/detail.html", ctx)
 
 
@@ -226,9 +248,10 @@ async def update_collection(
     db.add(collection)
     await db.commit()
 
+    client = await _try_client(request, user, gs)
+
     # Resync all hosts if subdomain changed
     if old_subdomain != collection.subdomain:
-        client = await _try_client(request, user, gs)
         if client:
             hosts = await db.exec(select(Host).where(Host.collection_id == collection_id))
             for host in hosts.all():
@@ -238,6 +261,13 @@ async def update_collection(
                 host.last_error = error
                 db.add(host)
             await db.commit()
+
+    # Resync Advanced Blocking (subnets affect networkGroupMap)
+    if client:
+        try:
+            await sync_blocking(client, db)
+        except Exception:
+            pass
 
     return RedirectResponse(f"/collections/{collection_id}", 303)
 
@@ -547,3 +577,114 @@ async def delete_host(
     await db.delete(host)
     await db.commit()
     return HTMLResponse("", headers={"HX-Trigger": "undoUpdated"})
+
+
+# ── Blocking assignments ───────────────────────────────────────────────────────
+
+async def _sync_blocking_safe(request: Request, user: User, gs: GlobalSettings, db: AsyncSession) -> None:
+    client = await _try_client(request, user, gs)
+    if client:
+        try:
+            await sync_blocking(client, db)
+        except Exception:
+            pass
+
+
+@router.post("/{collection_id}/blocklists", response_class=HTMLResponse)
+async def assign_blocklist(
+    request: Request,
+    collection_id: int,
+    blocklist_id: int = Form(...),
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    collection = await db.get(Collection, collection_id)
+    bl = await db.get(BlockListSubscription, blocklist_id)
+    if not collection or not bl:
+        return HTMLResponse("", status_code=404)
+
+    existing = await db.exec(
+        select(CollectionBlockList)
+        .where(CollectionBlockList.collection_id == collection_id)
+        .where(CollectionBlockList.blocklist_id == blocklist_id)
+    )
+    if not existing.first():
+        db.add(CollectionBlockList(collection_id=collection_id, blocklist_id=blocklist_id))
+        await db.commit()
+        await _sync_blocking_safe(request, user, gs, db)
+
+    ctx = {"bl": bl, "collection_id": collection_id}
+    return templates.TemplateResponse(request, "collections/_blocklist_item.html", ctx)
+
+
+@router.delete("/{collection_id}/blocklists/{bl_id}", response_class=HTMLResponse)
+async def unassign_blocklist(
+    request: Request,
+    collection_id: int,
+    bl_id: int,
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    result = await db.exec(
+        select(CollectionBlockList)
+        .where(CollectionBlockList.collection_id == collection_id)
+        .where(CollectionBlockList.blocklist_id == bl_id)
+    )
+    link = result.first()
+    if link:
+        await db.delete(link)
+        await db.commit()
+        await _sync_blocking_safe(request, user, gs, db)
+    return HTMLResponse("")
+
+
+@router.post("/{collection_id}/rulesets", response_class=HTMLResponse)
+async def assign_ruleset(
+    request: Request,
+    collection_id: int,
+    ruleset_id: int = Form(...),
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    collection = await db.get(Collection, collection_id)
+    rs = await db.get(RuleSet, ruleset_id)
+    if not collection or not rs:
+        return HTMLResponse("", status_code=404)
+
+    existing = await db.exec(
+        select(CollectionRuleSet)
+        .where(CollectionRuleSet.collection_id == collection_id)
+        .where(CollectionRuleSet.ruleset_id == ruleset_id)
+    )
+    if not existing.first():
+        db.add(CollectionRuleSet(collection_id=collection_id, ruleset_id=ruleset_id))
+        await db.commit()
+        await _sync_blocking_safe(request, user, gs, db)
+
+    ctx = {"rs": rs, "collection_id": collection_id}
+    return templates.TemplateResponse(request, "collections/_ruleset_item.html", ctx)
+
+
+@router.delete("/{collection_id}/rulesets/{rs_id}", response_class=HTMLResponse)
+async def unassign_ruleset(
+    request: Request,
+    collection_id: int,
+    rs_id: int,
+    user: User = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    gs: GlobalSettings = Depends(get_global_settings),
+):
+    result = await db.exec(
+        select(CollectionRuleSet)
+        .where(CollectionRuleSet.collection_id == collection_id)
+        .where(CollectionRuleSet.ruleset_id == rs_id)
+    )
+    link = result.first()
+    if link:
+        await db.delete(link)
+        await db.commit()
+        await _sync_blocking_safe(request, user, gs, db)
+    return HTMLResponse("")

@@ -1,0 +1,12 @@
+<li id="col-bl-{{ bl.id }}" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--pico-muted-border-color)">
+  <span>
+    <strong>{{ bl.name }}</strong>
+    {% if not bl.enabled %}<span class="muted" style="font-size:0.8rem"> (disabled)</span>{% endif %}
+  </span>
+  <button
+    hx-delete="/collections/{{ collection_id }}/blocklists/{{ bl.id }}"
+    hx-target="#col-bl-{{ bl.id }}"
+    hx-swap="outerHTML swap:300ms"
+    class="outline secondary"
+    style="padding:0.1rem 0.4rem;font-size:0.8rem;margin:0;flex-shrink:0">✕</button>
+</li>

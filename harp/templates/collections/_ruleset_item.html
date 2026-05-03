@@ -1,0 +1,9 @@
+<li id="col-rs-{{ rs.id }}" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--pico-muted-border-color)">
+  <a href="/blocking/rulesets/{{ rs.id }}">{{ rs.name }}</a>
+  <button
+    hx-delete="/collections/{{ collection_id }}/rulesets/{{ rs.id }}"
+    hx-target="#col-rs-{{ rs.id }}"
+    hx-swap="outerHTML swap:300ms"
+    class="outline secondary"
+    style="padding:0.1rem 0.4rem;font-size:0.8rem;margin:0;flex-shrink:0">✕</button>
+</li>

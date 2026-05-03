@@ -1,10 +1,18 @@
 from typing import Optional
 
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from .client import blocking as blocking_client
 from .client.base import TechnitiumClient
 from .client.dhcp import add_reserved_lease, find_scope_for_ip, remove_reserved_lease
 from .client.dns import (
     add_a_record, add_ptr_record, delete_a_record,
     delete_ptr_record, ensure_zone_exists,
+)
+from .models import (
+    BlockListSubscription, Collection, CollectionBlockList,
+    CollectionRuleSet, CollectionSubnet, CustomRule,
 )
 
 
@@ -54,6 +62,49 @@ async def sync_host(
         return None
     else:
         return f"No DHCP scope covers {ip} — DNS records created, no DHCP reservation"
+
+
+async def load_blocking_data(db: AsyncSession) -> list[dict]:
+    """Load all collections with their blocking assignments for a full Advanced Blocking sync."""
+    collections = (await db.exec(select(Collection))).all()
+    data = []
+    for collection in collections:
+        subnets = (await db.exec(
+            select(CollectionSubnet).where(CollectionSubnet.collection_id == collection.id)
+        )).all()
+
+        bl_links = (await db.exec(
+            select(CollectionBlockList).where(CollectionBlockList.collection_id == collection.id)
+        )).all()
+        bl_ids = [l.blocklist_id for l in bl_links]
+        blocklists = []
+        if bl_ids:
+            blocklists = (await db.exec(
+                select(BlockListSubscription).where(BlockListSubscription.id.in_(bl_ids))
+            )).all()
+
+        rs_links = (await db.exec(
+            select(CollectionRuleSet).where(CollectionRuleSet.collection_id == collection.id)
+        )).all()
+        rs_ids = [l.ruleset_id for l in rs_links]
+        rules = []
+        if rs_ids:
+            rules = (await db.exec(
+                select(CustomRule).where(CustomRule.ruleset_id.in_(rs_ids))
+            )).all()
+
+        data.append({
+            "collection": collection,
+            "subnets": subnets,
+            "blocklists": blocklists,
+            "rules": rules,
+        })
+    return data
+
+
+async def sync_blocking(tc: TechnitiumClient, db: AsyncSession) -> None:
+    data = await load_blocking_data(db)
+    await blocking_client.sync(tc, data)
 
 
 async def unsync_host(

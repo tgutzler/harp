@@ -81,4 +81,72 @@
   </form>
 </article>
 
+{% if subnets %}
+<h3>Blocking</h3>
+<p class="muted" style="font-size:0.875rem;margin-top:-0.75rem">
+  Assigned to group <code>{{ collection.subdomain or 'collection_' ~ collection.id }}</code> in the Advanced Blocking app.
+</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start">
+
+  <div>
+    <h4 style="margin-bottom:0.5rem">Block Lists</h4>
+    <ul id="col-blocklists-{{ collection.id }}" style="list-style:none;padding:0;margin:0 0 0.75rem">
+      {% for bl in assigned_blocklists %}
+      {% include "collections/_blocklist_item.html" %}
+      {% endfor %}
+      {% if not assigned_blocklists %}
+      <li class="muted" style="font-size:0.875rem">None assigned.</li>
+      {% endif %}
+    </ul>
+    {% if available_blocklists %}
+    <form hx-post="/collections/{{ collection.id }}/blocklists"
+          hx-target="#col-blocklists-{{ collection.id }}"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset()">
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <select name="blocklist_id" style="margin:0;flex:1">
+          {% for bl in available_blocklists %}
+          <option value="{{ bl.id }}">{{ bl.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="outline" style="margin:0;white-space:nowrap">+ Assign</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+  <div>
+    <h4 style="margin-bottom:0.5rem">Rule Sets</h4>
+    <ul id="col-rulesets-{{ collection.id }}" style="list-style:none;padding:0;margin:0 0 0.75rem">
+      {% for rs in assigned_rulesets %}
+      {% include "collections/_ruleset_item.html" %}
+      {% endfor %}
+      {% if not assigned_rulesets %}
+      <li class="muted" style="font-size:0.875rem">None assigned.</li>
+      {% endif %}
+    </ul>
+    {% if available_rulesets %}
+    <form hx-post="/collections/{{ collection.id }}/rulesets"
+          hx-target="#col-rulesets-{{ collection.id }}"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset()">
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <select name="ruleset_id" style="margin:0;flex:1">
+          {% for rs in available_rulesets %}
+          <option value="{{ rs.id }}">{{ rs.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="outline" style="margin:0;white-space:nowrap">+ Assign</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+</div>
+{% else %}
+<p class="muted" style="font-size:0.875rem;margin-top:1rem">
+  Add subnets to this collection to enable per-collection blocking.
+</p>
+{% endif %}
+
 {% endblock %}
