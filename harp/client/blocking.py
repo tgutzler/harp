@@ -17,7 +17,7 @@ async def set_config(tc: TechnitiumClient, config: dict) -> None:
     await tc._request(
         "POST", "apps/config/set",
         params={"name": APP_NAME},
-        data={"config": json.dumps(config)},
+        data={"config": json.dumps(config, indent=2)},
     )
 
 
