@@ -180,6 +180,7 @@ async def collection_detail(
     available_rulesets = [r for r in all_rs_list if r.id not in assigned_rs_ids]
 
     ctx["collection"] = collection
+    ctx["collection_id"] = collection_id
     ctx["subnets"] = sn.all()
     ctx["hosts"] = hosts.all()
     ctx["zone"] = gs.zone
