@@ -82,13 +82,10 @@
 </article>
 
 {% if subnets %}
-<div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:0.25rem">
+<div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:1rem">
   <h3 style="margin:0">Blocking</h3>
   {% include "collections/_blocking_toggle.html" %}
 </div>
-<p class="muted" style="font-size:0.875rem;margin-top:0.25rem;margin-bottom:1rem">
-  Assigned to group <code>{{ collection.name }}</code> in the Advanced Blocking app.
-</p>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start">
 
   <div>
