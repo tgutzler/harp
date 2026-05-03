@@ -16,8 +16,8 @@ from ..crypto import decrypt_token
 from ..database import get_db
 from ..dependencies import base_context, get_global_settings, require_auth
 from ..models import (
-    BlockListSubscription, Collection, CollectionBlockList, CollectionRuleSet,
-    CollectionSubnet, CustomRule, GlobalSettings, RuleSet, User,
+    BlockListSubscription, CollectionBlockList, CollectionRuleSet,
+    CustomRule, GlobalSettings, RuleSet, User,
 )
 from ..sync import sync_blocking
 
@@ -267,66 +267,3 @@ async def delete_rule(
     return HTMLResponse("")
 
 
-# ── Import networkGroupMap from Advanced Blocking ─────────────────────────────
-
-@router.post("/import-network-map", response_class=HTMLResponse)
-async def import_network_map(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_auth),
-    gs: GlobalSettings = Depends(get_global_settings),
-):
-    client = await _try_client(request, user, gs)
-    if not client:
-        return HTMLResponse('<p class="muted">No API token configured — visit your profile.</p>')
-
-    try:
-        config = await blocking_client.get_config(client)
-    except Exception as e:
-        return HTMLResponse(f'<p class="badge badge-error">Could not read Advanced Blocking config: {e}</p>')
-
-    network_map: dict[str, str] = config.get("networkGroupMap", {})
-    if not network_map:
-        return HTMLResponse('<p class="muted">No entries in networkGroupMap.</p>')
-
-    # Build lookup: group_name → collection
-    collections = (await db.exec(select(Collection))).all()
-    by_subdomain: dict[str, Collection] = {c.subdomain: c for c in collections if c.subdomain}
-    by_id_key: dict[str, Collection] = {f"collection_{c.id}": c for c in collections}
-    group_to_collection: dict[str, Collection] = {**by_id_key, **by_subdomain}
-
-    # Existing subnets to avoid duplication
-    existing = (await db.exec(select(CollectionSubnet))).all()
-    existing_cidrs: set[tuple[int, str]] = {(s.collection_id, s.cidr) for s in existing}
-
-    added: list[tuple[str, str]] = []    # (cidr, collection.name)
-    skipped: list[tuple[str, str]] = []  # (cidr, collection.name) — already present
-    unmatched: list[tuple[str, str]] = []  # (cidr, group_name) — no collection found
-
-    for cidr, group_name in network_map.items():
-        collection = group_to_collection.get(group_name)
-        if not collection:
-            unmatched.append((cidr, group_name))
-            continue
-        if (collection.id, cidr) in existing_cidrs:
-            skipped.append((cidr, collection.name))
-            continue
-        db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
-        added.append((cidr, collection.name))
-
-    if added:
-        await db.commit()
-
-    lines = []
-    if added:
-        lines.append(f"<strong>Added {len(added)} subnet(s):</strong>")
-        lines.append("<ul>" + "".join(f"<li><code>{cidr}</code> → {name}</li>" for cidr, name in added) + "</ul>")
-    if skipped:
-        lines.append(f"<span class='muted'>Skipped {len(skipped)} already-present subnet(s).</span>")
-    if unmatched:
-        lines.append(f"<strong>Unmatched group(s) (no collection found):</strong>")
-        lines.append("<ul>" + "".join(f"<li><code>{cidr}</code> → <em>{name}</em></li>" for cidr, name in unmatched) + "</ul>")
-    if not lines:
-        lines.append("<span class='muted'>Nothing to import.</span>")
-
-    return HTMLResponse("".join(lines))

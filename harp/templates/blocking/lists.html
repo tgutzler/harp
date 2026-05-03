@@ -45,20 +45,4 @@
 <p class="muted" id="lists-empty">No block lists yet.</p>
 {% endif %}
 
-<hr style="margin:2rem 0">
-
-<details style="margin-bottom:1.5rem">
-  <summary>Import subnets from Advanced Blocking app</summary>
-  <p class="muted" style="font-size:0.875rem;margin:0.5rem 0">
-    Reads the <code>networkGroupMap</code> from the Advanced Blocking app and adds any subnets
-    to the matching HARP collection (matched by subdomain = group name).
-  </p>
-  <button
-    hx-post="/blocking/import-network-map"
-    hx-target="#import-result"
-    hx-swap="innerHTML"
-    style="margin-bottom:0.5rem">Import subnets</button>
-  <div id="import-result"></div>
-</details>
-
 {% endblock %}

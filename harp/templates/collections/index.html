@@ -56,4 +56,20 @@
 <p class="muted">No collections yet. <a href="/collections/new">Create one</a> to get started.</p>
 {% endif %}
 
+<details style="margin-top:1.5rem">
+  <summary class="muted" style="font-size:0.875rem;cursor:pointer">Import from Advanced Blocking app</summary>
+  <p class="muted" style="font-size:0.875rem;margin:0.5rem 0">
+    Creates a collection for each group defined in the Advanced Blocking app.
+    Subnets are populated from <code>networkGroupMap</code> entries for that group.
+    Existing collections are not overwritten — only missing subnets are added.
+  </p>
+  <button
+    hx-post="/collections/import-blocking"
+    hx-target="#import-result"
+    hx-swap="innerHTML"
+    class="outline"
+    style="margin-bottom:0.5rem">Import groups</button>
+  <div id="import-result" style="font-size:0.875rem"></div>
+</details>
+
 {% endblock %}
