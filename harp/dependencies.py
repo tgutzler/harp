@@ -33,8 +33,8 @@ async def base_context(
     session_id = request.session.get("session_id")
     user = None
     undo_count = 0
-
     undo_label = None
+    undo_tooltip = None
     if user_id and session_id:
         user = await db.get(User, user_id)
         if user:
@@ -58,7 +58,8 @@ async def base_context(
                     name = (state or {}).get("hostname") or (state or {}).get("name") or "unknown"
                     verb = {"create": "add", "update": "edit", "delete": "delete"}.get(entry.operation, entry.operation)
                     noun = "host" if entry.entity_type == "host" else "collection"
-                    undo_label = f"{verb} {noun} \"{name}\""
+                    undo_label = f"{verb} {noun}"
+                    undo_tooltip = f'{verb} {noun} "{name}"'
 
     discovery_count = 0
     drift_count = 0
@@ -81,6 +82,7 @@ async def base_context(
         "user": user,
         "undo_count": undo_count,
         "undo_label": undo_label,
+        "undo_tooltip": undo_tooltip,
         "discovery_count": discovery_count,
         "drift_count": drift_count,
         "flash": flash,

@@ -171,12 +171,13 @@ async def _undo_collection(db: AsyncSession, entry: ChangeLog, client: Optional[
             db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
 
 
-def _entry_description(entry: ChangeLog) -> str:
+def _entry_label(entry: ChangeLog) -> tuple[str, str]:
+    """Returns (button_label, tooltip) for the undo button."""
     state = entry.after_state if entry.operation == "create" else entry.before_state
     name = (state or {}).get("hostname") or (state or {}).get("name") or "unknown"
     verb = {"create": "add", "update": "edit", "delete": "delete"}.get(entry.operation, entry.operation)
     noun = "host" if entry.entity_type == "host" else "collection"
-    return f'{verb} {noun} “{name}”'
+    return f"{verb} {noun}", f'{verb} {noun} "{name}"'
 
 
 @router.get("/count", response_class=HTMLResponse)
@@ -206,8 +207,8 @@ async def undo_count(
 
     inner = ""
     if entry:
-        desc = _entry_description(entry)
-        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn">↩ Undo: {desc}</button>"""
+        label, tooltip = _entry_label(entry)
+        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn" title="{tooltip}">↩ Undo: {label}</button>"""
     return HTMLResponse(
         f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="undoUpdated from:body" hx-swap="outerHTML">{inner}</div>'
     )
