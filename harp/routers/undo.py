@@ -188,7 +188,7 @@ async def undo_count(
 
     inner = ""
     if count > 0:
-        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="outline contrast">↩ Undo ({count})</button>"""
+        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn">↩ Undo ({count})</button>"""
     return HTMLResponse(
         f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="every 3s" hx-swap="outerHTML">{inner}</div>'
     )

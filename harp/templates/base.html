@@ -45,11 +45,7 @@
       </div>
       <div id="undo-bar" hx-get="/undo/count" hx-trigger="undoUpdated from:body" hx-swap="outerHTML">
         {% if undo_count > 0 %}
-        <button
-          hx-post="/undo"
-          hx-target="body"
-          hx-swap="outerHTML"
-          class="outline contrast">
+        <button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn">
           ↩ Undo ({{ undo_count }})
         </button>
         {% endif %}

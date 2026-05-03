@@ -116,14 +116,25 @@ body.app-layout {
 
 /* ── Undo bar ────────────────────────────────────────── */
 
-.undo-bar {
-    margin: 0.75rem 0 0;
+#undo-bar {
+    margin-top: 0.6rem;
 }
 
-.undo-bar button {
+.undo-btn {
+    all: unset;
+    display: block;
     width: 100%;
+    box-sizing: border-box;
+    padding: 0.3rem 0.5rem;
     font-size: 0.8rem;
-    padding: 0.4rem 0.75rem;
+    color: var(--pico-primary);
+    border-radius: var(--pico-border-radius);
+    cursor: pointer;
+    text-align: left;
+}
+
+.undo-btn:hover {
+    background: var(--pico-muted-background-color);
 }
 
 /* ── Flash messages ──────────────────────────────────── */
