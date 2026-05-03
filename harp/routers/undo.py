@@ -208,7 +208,7 @@ async def undo_count(
     inner = ""
     if entry:
         label, tooltip = _entry_label(entry)
-        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn" title="{tooltip}">↩ Undo: {label}</button>"""
+        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn" title="{tooltip}">↩ {label}</button>"""
     return HTMLResponse(
         f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="undoUpdated from:body" hx-swap="outerHTML">{inner}</div>'
     )
