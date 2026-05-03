@@ -171,26 +171,45 @@ async def _undo_collection(db: AsyncSession, entry: ChangeLog, client: Optional[
             db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
 
 
+def _entry_description(entry: ChangeLog) -> str:
+    state = entry.after_state if entry.operation == "create" else entry.before_state
+    name = (state or {}).get("hostname") or (state or {}).get("name") or "unknown"
+    verb = {"create": "add", "update": "edit", "delete": "delete"}.get(entry.operation, entry.operation)
+    noun = "host" if entry.entity_type == "host" else "collection"
+    return f'{verb} {noun} “{name}”'
+
+
 @router.get("/count", response_class=HTMLResponse)
 async def undo_count(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     session_id = request.session.get("session_id")
+    entry = None
     count = 0
     if session_id:
-        result = await db.exec(
+        count_result = await db.exec(
             select(func.count(ChangeLog.id))
             .where(ChangeLog.session_id == session_id)
             .where(ChangeLog.undone == False)  # noqa: E712
         )
-        count = result.one()
+        count = count_result.one()
+        if count > 0:
+            latest = await db.exec(
+                select(ChangeLog)
+                .where(ChangeLog.session_id == session_id)
+                .where(ChangeLog.undone == False)  # noqa: E712
+                .order_by(ChangeLog.id.desc())
+                .limit(1)
+            )
+            entry = latest.one_or_none()
 
     inner = ""
-    if count > 0:
-        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn">↩ Undo ({count})</button>"""
+    if entry:
+        desc = _entry_description(entry)
+        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="undo-btn">↩ Undo: {desc}</button>"""
     return HTMLResponse(
-        f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="every 3s" hx-swap="outerHTML">{inner}</div>'
+        f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="undoUpdated from:body" hx-swap="outerHTML">{inner}</div>'
     )
 
 

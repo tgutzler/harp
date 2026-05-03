@@ -117,7 +117,7 @@ body.app-layout {
 /* ── Undo bar ────────────────────────────────────────── */
 
 #undo-bar {
-    margin-top: 0.6rem;
+    margin-top: 0.5rem;
 }
 
 .undo-btn {
@@ -127,10 +127,15 @@ body.app-layout {
     box-sizing: border-box;
     padding: 0.3rem 0.5rem;
     font-size: 0.8rem;
+    font-family: inherit;
     color: var(--pico-primary);
+    border: 1px solid var(--pico-primary-border);
     border-radius: var(--pico-border-radius);
     cursor: pointer;
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .undo-btn:hover {

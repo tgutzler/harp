@@ -34,15 +34,31 @@ async def base_context(
     user = None
     undo_count = 0
 
+    undo_label = None
     if user_id and session_id:
         user = await db.get(User, user_id)
         if user:
-            result = await db.exec(
+            count_result = await db.exec(
                 select(func.count(ChangeLog.id))
                 .where(ChangeLog.session_id == session_id)
                 .where(ChangeLog.undone == False)  # noqa: E712
             )
-            undo_count = result.one()
+            undo_count = count_result.one()
+            if undo_count > 0:
+                latest = await db.exec(
+                    select(ChangeLog)
+                    .where(ChangeLog.session_id == session_id)
+                    .where(ChangeLog.undone == False)  # noqa: E712
+                    .order_by(ChangeLog.id.desc())
+                    .limit(1)
+                )
+                entry = latest.one_or_none()
+                if entry:
+                    state = entry.after_state if entry.operation == "create" else entry.before_state
+                    name = (state or {}).get("hostname") or (state or {}).get("name") or "unknown"
+                    verb = {"create": "add", "update": "edit", "delete": "delete"}.get(entry.operation, entry.operation)
+                    noun = "host" if entry.entity_type == "host" else "collection"
+                    undo_label = f"{verb} {noun} \"{name}\""
 
     discovery_count = 0
     drift_count = 0
@@ -64,6 +80,7 @@ async def base_context(
         "request": request,
         "user": user,
         "undo_count": undo_count,
+        "undo_label": undo_label,
         "discovery_count": discovery_count,
         "drift_count": drift_count,
         "flash": flash,
