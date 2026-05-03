@@ -5,6 +5,7 @@ import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -168,6 +169,29 @@ async def _undo_collection(db: AsyncSession, entry: ChangeLog, client: Optional[
         await db.flush()
         for cidr in old.get("subnets", []):
             db.add(CollectionSubnet(collection_id=collection.id, cidr=cidr))
+
+
+@router.get("/count", response_class=HTMLResponse)
+async def undo_count(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    session_id = request.session.get("session_id")
+    count = 0
+    if session_id:
+        result = await db.exec(
+            select(func.count(ChangeLog.id))
+            .where(ChangeLog.session_id == session_id)
+            .where(ChangeLog.undone == False)  # noqa: E712
+        )
+        count = result.one()
+
+    inner = ""
+    if count > 0:
+        inner = f"""<button hx-post="/undo" hx-target="body" hx-swap="outerHTML" class="outline contrast">↩ Undo ({count})</button>"""
+    return HTMLResponse(
+        f'<div id="undo-bar" hx-get="/undo/count" hx-trigger="every 3s" hx-swap="outerHTML">{inner}</div>'
+    )
 
 
 @router.post("")
