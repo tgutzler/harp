@@ -4,7 +4,10 @@
 
 <div class="page-header">
   <h2>Collections</h2>
-  <div style="display:flex;gap:0.5rem">
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <button hx-post="/blocking/sync" hx-target="#sync-result" hx-swap="innerHTML"
+            class="outline secondary">Push to Technitium</button>
+    <span id="sync-result" style="font-size:0.85rem"></span>
     <a href="/collections/hosts/new" role="button" class="outline secondary">+ Add host</a>
     <a href="/collections/new" role="button" class="outline">+ New collection</a>
   </div>
