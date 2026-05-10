@@ -25,24 +25,33 @@
   {% endif %}
 </div>
 
+{% macro sort_link(col, label) %}
+  {% set next_dir = "asc" if (sort != col or dir == "desc") else "desc" %}
+  <a href="/collections/{{ collection.id }}?sort={{ col }}&dir={{ next_dir }}" style="color:inherit;text-decoration:none;white-space:nowrap">
+    {{ label }}
+    {% if sort == col %}{{ "▲" if dir == "asc" else "▼" }}{% endif %}
+  </a>
+{% endmacro %}
+
 <h3>Hosts</h3>
 
 <figure>
   <table>
     <thead>
       <tr>
-        <th>Hostname</th>
-        <th>FQDN</th>
-        <th>IP address</th>
-        <th>MAC address</th>
+        <th>{{ sort_link("hostname", "Hostname") }}</th>
+        <th>{{ sort_link("fqdn", "FQDN") }}</th>
+        <th>{{ sort_link("ip", "IP address") }}</th>
+        <th>{{ sort_link("mac", "MAC address") }}</th>
         <th>Status</th>
         <th></th>
       </tr>
     </thead>
     <tbody id="hosts-tbody">
-      {% if hosts %}
-        {% for host in hosts %}
-        {% set fqdn = host.hostname + ('.' + collection.subdomain if collection.subdomain else '') + '.' + zone %}
+      {% if rows %}
+        {% for r in rows %}
+        {% set host = r.host %}
+        {% set fqdn = r.fqdn %}
         {% include "collections/_host_row.html" %}
         {% endfor %}
       {% else %}
@@ -63,12 +72,12 @@
     <div class="grid">
       <label>
         Hostname
-        <input type="text" name="hostname" placeholder="printer" required
+        <input type="text" name="hostname" placeholder="host" required
                pattern="[a-zA-Z0-9-]+" title="Letters, numbers and hyphens only">
       </label>
       <label>
         IP address
-        <input type="text" name="ip_address" placeholder="192.168.10.5" required
+        <input type="text" name="ip_address" placeholder="0.0.0.0" required
                pattern="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}">
       </label>
       <label>

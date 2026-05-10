@@ -1,0 +1,33 @@
+<tr id="logsource-{{ source.id }}">
+  <td>
+    {% if source.is_primary %}🔒 {% endif %}{{ source.name }}
+    {% if source.is_primary %}<br><span class="muted" style="font-size:0.75rem">auto-synced from connection settings</span>{% endif %}
+  </td>
+  <td class="muted" style="font-size:0.82rem">{{ source.url }}</td>
+  <td>
+    <span class="badge {% if source.token_encrypted %}badge-synced{% else %}badge-error{% endif %}">
+      {% if source.token_encrypted %}token set{% else %}no token{% endif %}
+    </span>
+  </td>
+  <td>
+    <button
+      hx-post="/settings/log-sources/{{ source.id }}/toggle"
+      hx-target="#logsource-{{ source.id }}"
+      hx-swap="outerHTML"
+      class="outline {% if source.enabled %}primary{% else %}secondary{% endif %}"
+      style="padding:0.15rem 0.6rem;font-size:0.8rem;margin:0">
+      {% if source.enabled %}on{% else %}off{% endif %}
+    </button>
+  </td>
+  <td>
+    {% if not source.is_primary %}
+    <button
+      hx-delete="/settings/log-sources/{{ source.id }}"
+      hx-target="#logsource-{{ source.id }}"
+      hx-swap="outerHTML swap:300ms"
+      hx-confirm="Remove log source '{{ source.name }}'?"
+      class="outline secondary"
+      style="padding:0.15rem 0.5rem;font-size:0.8rem;margin:0">✕</button>
+    {% endif %}
+  </td>
+</tr>

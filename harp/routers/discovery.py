@@ -31,13 +31,12 @@ def _get_http_client(request: Request) -> httpx.AsyncClient:
 
 async def _try_client(
     request: Request,
-    user: User,
     gs: GlobalSettings,
 ) -> Optional[TechnitiumClient]:
-    if not user.technitium_token_encrypted:
+    if not gs.technitium_token_encrypted:
         return None
     try:
-        token = decrypt_token(user.technitium_token_encrypted, app_settings.secret_key)
+        token = decrypt_token(gs.technitium_token_encrypted, app_settings.secret_key)
         return TechnitiumClient(
             base_url=gs.technitium_url,
             token=token,
@@ -127,6 +126,7 @@ async def do_import(
     db: AsyncSession = Depends(get_db),
     gs: GlobalSettings = Depends(get_global_settings),
     collection_id: int = Form(...),
+    ip_address: str = Form(...),
     mac_address: str = Form(...),
 ):
     discovery = await db.get(DiscoveredHost, discovery_id)
@@ -149,14 +149,14 @@ async def do_import(
     host = Host(
         collection_id=collection_id,
         hostname=hostname.strip().lower(),
-        ip_address=discovery.ip_address,
+        ip_address=ip_address.strip(),
         mac_address=normalize_mac(mac_address),
         sync_status="pending",
     )
     db.add(host)
     await db.flush()
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         status, error = await _do_sync(client, host, collection, gs.zone)
         host.sync_status = status

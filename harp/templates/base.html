@@ -33,6 +33,10 @@
         <li><a href="/blocking/lists" {% if request.url.path.startswith('/blocking/lists') %}class="active"{% endif %}>Block Lists</a></li>
         <li><a href="/blocking/rulesets" {% if request.url.path.startswith('/blocking/rulesets') %}class="active"{% endif %}>Rule Sets</a></li>
 
+        <li><span class="sidebar-section">Logs</span></li>
+        <li><a href="/logs" {% if request.url.path == '/logs' %}class="active"{% endif %}>Dashboard</a></li>
+        <li><a href="/logs/queries" {% if request.url.path == '/logs/queries' %}class="active"{% endif %}>Query Log</a></li>
+
         <li><span class="sidebar-section">System</span></li>
         <li><a href="/settings" {% if request.url.path.startswith('/settings') %}class="active"{% endif %}>Settings</a></li>
       </ul>

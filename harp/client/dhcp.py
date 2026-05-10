@@ -86,3 +86,26 @@ async def find_mac_for_ip(client: TechnitiumClient, ip: str) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+async def list_all_reserved_leases(client: TechnitiumClient) -> list[dict]:
+    """Return all reserved leases from every DHCP scope as [{mac, ip, hostname, scope}]."""
+    response = await client._request("GET", "dhcp/scopes/list")
+    results = []
+    for scope in response.get("scopes", []):
+        scope_name = scope["name"]
+        try:
+            detail = await client._request("GET", "dhcp/scopes/get", params={"name": scope_name})
+        except Exception:
+            continue
+        for lease in detail.get("reservedLeases", []):
+            mac = lease.get("hardwareAddress", "")
+            ip = lease.get("address", "")
+            if mac and ip:
+                results.append({
+                    "mac": normalize_mac(mac),
+                    "ip": ip,
+                    "hostname": lease.get("hostName", ""),
+                    "scope": scope_name,
+                })
+    return results

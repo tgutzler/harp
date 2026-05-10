@@ -6,39 +6,57 @@
   <h2>Settings</h2>
 </div>
 
-<form action="/settings" method="post">
-  <div class="grid">
+<div class="grid">
 
+  {% if gs.zone %}
+  <article>
+    <header><strong>DNS Zone</strong></header>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+      <code style="font-size:1rem">{{ gs.zone }}</code>
+    </div>
+    <small class="muted" style="display:block;margin-bottom:1rem">All hosts are written into this zone. Subdomains are added as a prefix per collection (e.g. <code>host.iot.{{ gs.zone }}</code>).</small>
+    <form action="/settings/zone/delete" method="post"
+          onsubmit="return confirm('Delete zone {{ gs.zone }}?\n\nThis permanently removes all hosts, collections, block lists, rule sets, and other zone-specific settings.\n\nThis cannot be undone.')">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button type="submit" style="margin:0;width:auto">✕ Delete zone</button>
+        <small class="muted">Permanently removes all hosts, collections, block lists, and rule sets.</small>
+      </div>
+    </form>
+  </article>
+  {% else %}
+  <form action="/settings" method="post">
     <article>
       <header><strong>DNS Zone</strong></header>
       <label>
         Zone name
-        <input type="text" name="zone" value="{{ gs.zone }}" placeholder="home.lan" required
+        <input type="text" name="zone" placeholder="home.lan" required
                pattern="[a-zA-Z0-9._-]+" title="Valid DNS zone name">
-        <small class="muted">All hosts are written into this zone. Subdomains are added as a prefix per collection (e.g. <code>host.iot.{{ gs.zone }}</code>).</small>
+        <small class="muted">All hosts are written into this zone. Subdomains are added as a prefix per collection (e.g. <code>host.iot.home.lan</code>).</small>
       </label>
+      <button type="submit" style="margin-top:0.5rem">Set zone</button>
     </article>
+  </form>
+  {% endif %}
 
-    <article>
-      <header><strong>Technitium Connection</strong></header>
+  <article>
+    <header><strong>Technitium Connection</strong></header>
 
-      {% if not has_token %}
-      <div class="flash warning" style="margin-bottom:1rem">
-        No API token configured. <a href="/profile">Go to your profile</a> to add one before testing.
-      </div>
-      {% endif %}
-
+    <form action="/settings" method="post">
       <label>
         Server URL
         <input type="url" name="technitium_url" value="{{ gs.technitium_url }}"
                placeholder="http://192.168.1.1:5380" required>
         <small class="muted">Base URL of your Technitium DNS server, no trailing slash.</small>
       </label>
-
+      <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
+        <input type="checkbox" name="verify_ssl" value="1" {% if gs.verify_ssl %}checked{% endif %} style="margin:0">
+        Verify SSL certificate
+      </label>
       <div style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem">
         <button type="button"
                 hx-get="/settings/test"
                 hx-include="[name='technitium_url']"
+                hx-vals='js:{"verify_ssl": document.querySelector("[name=verify_ssl]").checked ? "1" : "0"}'
                 hx-target="#test-result"
                 hx-swap="innerHTML"
                 hx-indicator="#test-spinner"
@@ -47,14 +65,126 @@
                 style="margin:0;width:auto">
           Test connection
         </button>
+        <button type="submit" style="margin:0;flex:1">Save</button>
         <span id="test-spinner" class="htmx-indicator muted" style="font-size:0.85rem">Testing…</span>
         <span id="test-result"></span>
       </div>
-    </article>
+    </form>
 
+    <hr style="margin:1.25rem 0">
+
+    <form action="/settings/token" method="post">
+      <label>
+        API token
+        <input type="password" name="technitium_token" autocomplete="off"
+               placeholder="{% if has_token %}Enter new token to replace{% else %}Paste token here{% endif %}"
+               {% if not has_token %}required{% endif %}>
+        <small class="muted">Generate in Technitium under <em>Administration → API Tokens</em>. Stored encrypted.</small>
+      </label>
+      <div style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem">
+        {% if has_token %}
+        <form action="/settings/token/clear" method="post" style="margin:0">
+          <button type="submit" class="outline secondary" style="margin:0;width:auto">Remove token</button>
+        </form>
+        {% endif %}
+        <button type="submit" style="margin:0;flex:1">{% if has_token %}Replace token{% else %}Save token{% endif %}</button>
+      </div>
+    </form>
+
+  </article>
+
+</div>
+
+{% if log_sources %}
+<article style="margin-top:2rem">
+  <header><strong>Log Sources</strong></header>
+  <form action="/settings" method="post" style="margin-bottom:1rem">
+    <label style="display:flex;align-items:center;gap:0.75rem;margin:0">
+      <span style="white-space:nowrap">Local retention</span>
+      <input type="number" name="log_retention_days" value="{{ gs.log_retention_days }}"
+             min="1" max="365" style="margin:0;width:6rem">
+      <span class="muted" style="white-space:nowrap">days</span>
+      <button type="submit" style="margin:0;width:auto">Save</button>
+    </label>
+  </form>
+  <p class="muted" style="font-size:0.85rem;margin-bottom:0.75rem">
+    Query logs are polled from each enabled source every 60 seconds and stored locally for analysis.
+  </p>
+  <div style="margin-bottom:0.75rem">
+    <button type="button"
+            hx-get="/settings/log-sources/discover"
+            hx-target="#discover-results"
+            hx-swap="innerHTML"
+            hx-indicator="#discover-spinner"
+            class="outline secondary"
+            style="width:auto;margin:0;font-size:0.85rem">
+      Discover cluster nodes
+    </button>
+    <span id="discover-spinner" class="htmx-indicator muted" style="font-size:0.85rem"> Querying…</span>
+    <div id="discover-results"></div>
   </div>
 
-  <button type="submit">Save settings</button>
+  <figure style="margin-bottom:1rem">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>URL</th><th>Token</th><th>Enabled</th><th></th></tr>
+      </thead>
+      <tbody id="logsources-tbody">
+        {% for source in log_sources %}
+        {% include "settings/_log_source_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </figure>
+
+  <details>
+    <summary style="font-size:0.9rem;cursor:pointer">Add secondary source</summary>
+    <form hx-post="/settings/log-sources" hx-target="#logsources-tbody" hx-swap="beforeend"
+          hx-on::after-request="this.reset()" style="margin-top:0.75rem">
+      <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:0.5rem;align-items:end">
+        <label style="margin:0">
+          Name
+          <input type="text" name="name" placeholder="Secondary-1" required>
+        </label>
+        <label style="margin:0">
+          Server URL
+          <input type="url" name="url" placeholder="http://192.168.1.2:5380" required>
+        </label>
+        <label style="margin:0">
+          API token
+          <input type="password" name="technitium_token" autocomplete="off" placeholder="Paste token">
+        </label>
+      </div>
+      <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">
+        <input type="checkbox" name="verify_ssl" value="1" checked style="margin:0">
+        Verify SSL certificate
+      </label>
+      <button type="submit" style="margin-top:0.5rem;width:auto">Add source</button>
+    </form>
+  </details>
+</article>
+{% endif %}
+
+{% if gs.zone %}
+<form action="/settings/import" method="post" style="margin-top:2rem">
+  <article>
+    <header><strong>Import from Technitium</strong></header>
+    <p style="margin-bottom:0.5rem">
+      <button type="submit" class="outline secondary" style="margin:0;width:auto"
+              {% if not has_token %}disabled title="No API token configured"{% endif %}>
+        Import
+      </button>
+    </p>
+    <small class="muted">
+      Reads the current Technitium configuration and imports:
+      Advanced Blocking groups as collections (with subnets, block lists, and rules);
+      DNS A records paired with DHCP reservations as hosts;
+      unmatched DNS-only or DHCP-only entries as discovered hosts.
+      Existing data is not overwritten.
+    </small>
+  </article>
 </form>
+{% endif %}
+
 
 {% endblock %}

@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
 from ..config import settings
-from ..crypto import decrypt_token, encrypt_token
+from ..crypto import decrypt_token
 from ..database import get_db
 from ..dependencies import base_context, require_auth
 from ..drift import check_drift_and_discover
@@ -61,20 +61,19 @@ async def login(
     request.session["user_id"] = user.id
     request.session["session_id"] = user_session.id
 
-    if user.technitium_token_encrypted:
-        gs = await db.get(GlobalSettings, 1)
-        if gs:
-            try:
-                token = decrypt_token(user.technitium_token_encrypted, settings.secret_key)
-                background_tasks.add_task(
-                    check_drift_and_discover,
-                    token=token,
-                    technitium_url=gs.technitium_url,
-                    zone=gs.zone,
-                    http_client=request.app.state.http_client,
-                )
-            except ValueError:
-                pass
+    gs = await db.get(GlobalSettings, 1)
+    if gs and gs.technitium_token_encrypted:
+        try:
+            token = decrypt_token(gs.technitium_token_encrypted, settings.secret_key)
+            background_tasks.add_task(
+                check_drift_and_discover,
+                token=token,
+                technitium_url=gs.technitium_url,
+                zone=gs.zone,
+                http_client=request.app.state.http_client,
+            )
+        except ValueError:
+            pass
 
     return RedirectResponse("/", 303)
 
@@ -139,7 +138,6 @@ async def profile_page(
     db: AsyncSession = Depends(get_db),
 ):
     ctx = await base_context(request, db)
-    ctx["has_token"] = user.technitium_token_encrypted is not None
     return templates.TemplateResponse(request, "profile.html", ctx)
 
 
@@ -171,28 +169,3 @@ async def update_password(
     return RedirectResponse("/profile", 303)
 
 
-@router.post("/profile/token")
-async def update_token(
-    request: Request,
-    user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-    technitium_token: str = Form(...),
-):
-    user.technitium_token_encrypted = encrypt_token(technitium_token.strip(), settings.secret_key)
-    db.add(user)
-    await db.commit()
-    request.session["flash"] = {"type": "success", "message": "API token saved"}
-    return RedirectResponse("/profile", 303)
-
-
-@router.post("/profile/token/clear")
-async def clear_token(
-    request: Request,
-    user: User = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    user.technitium_token_encrypted = None
-    db.add(user)
-    await db.commit()
-    request.session["flash"] = {"type": "success", "message": "API token removed"}
-    return RedirectResponse("/profile", 303)

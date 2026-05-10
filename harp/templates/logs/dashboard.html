@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Query Logs — HARP{% endblock %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+<div class="page-header">
+  <h2>Query Logs</h2>
+  <a href="/logs/queries" role="button" class="outline secondary">Query log →</a>
+</div>
+
+<div class="filter-pills" style="margin-bottom:1.5rem">
+  {% for h, label in hour_options %}
+  <a href="/logs?hours={{ h }}" class="filter-pill {% if hours == h %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+{% if stats.total == 0 %}
+<p class="muted">No log data yet — the poller will fetch entries from Technitium in the background.</p>
+{% else %}
+
+{# ── Summary cards ── #}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
+  {% for label, value, sub in [
+      ("Total queries",   stats.total,       "last " ~ hours ~ "h"),
+      ("Blocked",         stats.blocked,     stats.blocked_pct ~ "% of total"),
+      ("Unique clients",  stats.clients,     "active in window"),
+      ("Unique domains",  stats.domains,     "queried"),
+  ] %}
+  <article style="margin:0;text-align:center;padding:1rem">
+    <div style="font-size:1.8rem;font-weight:700;line-height:1.1">{{ value | int }}</div>
+    <div style="font-size:0.8rem;font-weight:600;margin:0.2rem 0 0.1rem">{{ label }}</div>
+    <div class="muted" style="font-size:0.75rem">{{ sub }}</div>
+  </article>
+  {% endfor %}
+</div>
+
+{# ── Timeline chart ── #}
+<article style="margin-bottom:1.5rem">
+  <header><strong>Queries over time</strong></header>
+  <canvas id="timeline-chart" height="80"></canvas>
+</article>
+
+{# ── Top tables + pie charts ── #}
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+
+  <article style="margin:0">
+    <header><strong>Top domains</strong></header>
+    {% if stats.top_domains %}
+    <table style="font-size:0.82rem">
+      <tbody>
+        {% for row in stats.top_domains %}
+        <tr>
+          <td><a href="/logs/analysis?hours={{ hours }}&qname={{ row.qname }}">{{ row.qname }}</a></td>
+          <td style="text-align:right;color:var(--pico-muted-color)">{{ row.cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted" style="font-size:0.85rem">None.</p>{% endif %}
+  </article>
+
+  <article style="margin:0">
+    <header><strong>Top blocked</strong></header>
+    {% if stats.top_blocked %}
+    <table style="font-size:0.82rem">
+      <tbody>
+        {% for row in stats.top_blocked %}
+        <tr>
+          <td><a href="/logs/analysis?hours={{ hours }}&qname={{ row.qname }}&blocked=1">{{ row.qname }}</a></td>
+          <td style="text-align:right;color:var(--pico-muted-color)">{{ row.cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted" style="font-size:0.85rem">None.</p>{% endif %}
+  </article>
+
+  <article style="margin:0">
+    <header><strong>Top clients</strong></header>
+    {% if stats.top_clients %}
+    <table style="font-size:0.82rem">
+      <tbody>
+        {% for row in stats.top_clients %}
+        <tr>
+          <td style="white-space:nowrap">
+            <a href="/logs/analysis?hours={{ hours }}&client={{ row.client_ip }}">{{ row.client_ip }}</a>{% if row.resolved_name %} <span class="muted" style="font-size:0.8rem">({{ row.resolved_name }})</span>{% endif %}
+          </td>
+          <td style="text-align:right;color:var(--pico-muted-color)">{{ row.cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted" style="font-size:0.85rem">None.</p>{% endif %}
+  </article>
+
+</div>
+
+{# ── Pie charts ── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <article style="margin:0">
+    <header><strong>Response types</strong></header>
+    <canvas id="response-chart" height="160"></canvas>
+  </article>
+  <article style="margin:0">
+    <header><strong>Query types</strong></header>
+    <canvas id="qtype-chart" height="160"></canvas>
+  </article>
+</div>
+
+{% endif %}
+
+<script>
+const timelineData   = {{ timeline_json | safe }};
+const responseRaw    = {{ response_types_json | safe }};
+const qtypeRaw       = {{ qtypes_json | safe }};
+const bucketMs       = {{ (300000 if hours <= 1 else (900000 if hours <= 6 else (3600000 if hours <= 48 else 86400000))) }};
+
+const PALETTE = [
+  '#6366f1','#22c55e','#ef4444','#f59e0b','#3b82f6',
+  '#ec4899','#14b8a6','#8b5cf6','#f97316','#06b6d4',
+];
+
+function fmt(ts) {
+  const d = new Date(ts);
+  return bucketMs >= 86400000
+    ? d.toLocaleDateString([], {month:'short', day:'numeric'})
+    : d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+// Timeline — stacked: allowed per source (bottom) + blocked per source (top, reds)
+if (document.getElementById('timeline-chart') && timelineData.series.length) {
+  const labels = timelineData.buckets.map(b => fmt(b));
+  const SOURCE_COLORS = ['#6366f1','#22c55e','#3b82f6','#f59e0b','#14b8a6','#8b5cf6'];
+  const allowedDatasets = timelineData.series.map((s, i) => ({
+    label: s.name + ' — allowed',
+    data: s.allowed,
+    borderColor: SOURCE_COLORS[i % SOURCE_COLORS.length],
+    backgroundColor: SOURCE_COLORS[i % SOURCE_COLORS.length] + '30',
+    tension: 0.3, fill: true, stack: 'queries', pointRadius: 0,
+  }));
+  const blockedDatasets = timelineData.series.map((s, i) => ({
+    label: s.name + ' — blocked',
+    data: s.blocked,
+    borderColor: SOURCE_COLORS[i % SOURCE_COLORS.length],
+    backgroundColor: SOURCE_COLORS[i % SOURCE_COLORS.length] + '60',
+    borderDash: [4, 3],
+    tension: 0.3, fill: true, stack: 'queries', pointRadius: 0,
+  }));
+  new Chart(document.getElementById('timeline-chart'), {
+    type: 'line',
+    data: { labels, datasets: [...allowedDatasets, ...blockedDatasets] },
+    options: {
+      responsive: true,
+      interaction: {mode:'index', intersect:false},
+      plugins: {legend: {position:'top'}},
+      scales: {y: {beginAtZero:true, ticks:{precision:0}, stacked: true}},
+    },
+  });
+}
+
+// Response types doughnut
+if (document.getElementById('response-chart') && responseRaw.length) {
+  new Chart(document.getElementById('response-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: responseRaw.map(r => r.response_type),
+      datasets:[{data: responseRaw.map(r => r.cnt), backgroundColor: PALETTE}],
+    },
+    options:{responsive:true, plugins:{legend:{position:'right'}}},
+  });
+}
+
+// Query types doughnut
+if (document.getElementById('qtype-chart') && qtypeRaw.length) {
+  new Chart(document.getElementById('qtype-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: qtypeRaw.map(r => r.qtype),
+      datasets:[{data: qtypeRaw.map(r => r.cnt), backgroundColor: PALETTE}],
+    },
+    options:{responsive:true, plugins:{legend:{position:'right'}}},
+  });
+}
+</script>
+
+{% endblock %}

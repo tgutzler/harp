@@ -22,8 +22,11 @@ class UserSession(SQLModel, table=True):
 
 class GlobalSettings(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
-    zone: str = Field(default="home.lan")
+    zone: str = Field(default="")
     technitium_url: str = Field(default="http://localhost:5380")
+    verify_ssl: bool = Field(default=True)
+    technitium_token_encrypted: Optional[str] = None
+    log_retention_days: int = Field(default=7)
 
 
 class Collection(SQLModel, table=True):
@@ -98,6 +101,17 @@ class DiscoveredHost(SQLModel, table=True):
     dismissed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LogSource(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    url: str
+    token_encrypted: Optional[str] = None
+    verify_ssl: bool = Field(default=True)
+    enabled: bool = Field(default=True)
+    is_primary: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ChangeLog(SQLModel, table=True):

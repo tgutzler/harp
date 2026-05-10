@@ -1,5 +1,12 @@
 <tr id="blocklist-{{ entry.id }}">
-  <td>{{ entry.name }}</td>
+  <td>
+    <input type="text" name="name" value="{{ entry.name }}"
+           hx-patch="/blocking/lists/{{ entry.id }}"
+           hx-target="#blocklist-{{ entry.id }}"
+           hx-swap="outerHTML"
+           hx-trigger="change"
+           class="inline-edit">
+  </td>
   <td><a href="{{ entry.url }}" target="_blank" rel="noopener" class="muted" style="font-size:0.85rem;word-break:break-all">{{ entry.url }}</a></td>
   <td>
     <button

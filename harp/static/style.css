@@ -13,7 +13,8 @@
 body.app-layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     margin: 0;
     padding: 0;
 }
@@ -24,6 +25,7 @@ body.app-layout {
     display: flex;
     flex-direction: column;
     padding: 0;
+    height: 100vh;
     overflow-y: auto;
 }
 
@@ -110,6 +112,7 @@ body.app-layout {
 
 .app-main {
     padding: 2rem;
+    height: 100vh;
     overflow-y: auto;
 }
 
@@ -295,6 +298,33 @@ body.standalone {
 
 .chevron-btn:hover {
     color: var(--pico-primary);
+}
+
+/* ── Inline-edit inputs (e.g. table cell names) ─────── */
+
+input.inline-edit {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--pico-border-radius);
+    padding: 0.1rem 0.3rem;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    min-width: 6rem;
+    box-shadow: none;
+    height: auto;
+    line-height: inherit;
+}
+
+input.inline-edit:hover {
+    border-color: var(--pico-muted-border-color);
+}
+
+input.inline-edit:focus {
+    border-color: var(--pico-primary);
+    outline: none;
+    background: var(--pico-card-background-color);
 }
 
 /* ── Utilities ───────────────────────────────────────── */

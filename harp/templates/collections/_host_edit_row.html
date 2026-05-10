@@ -13,7 +13,13 @@
            pattern="[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}" style="margin:0;padding:0.2rem 0.4rem;font-size:0.9rem">
   </td>
   {% if show_collection %}
-  <td><a href="/collections/{{ collection.id }}">{{ collection.name }}</a></td>
+  <td>
+    <select name="new_collection_id" style="margin:0;padding:0.2rem 0.4rem;font-size:0.9rem">
+      {% for c in collections %}
+      <option value="{{ c.id }}" {% if c.id == collection.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </td>
   {% endif %}
   <td>
     <input type="hidden" name="show_collection" value="{{ 'true' if show_collection else 'false' }}">

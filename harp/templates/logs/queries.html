@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Query Log — HARP{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h2>Query Log</h2>
+  <a href="/logs" role="button" class="outline secondary">← Dashboard</a>
+</div>
+
+<form method="get" action="/logs/queries" style="margin-bottom:1rem">
+  <div style="display:grid;grid-template-columns:auto auto 1fr 1fr auto;gap:0.5rem;align-items:end">
+
+    <label style="margin:0">
+      Window
+      <select name="hours" style="margin:0">
+        {% for h, label in hour_options %}
+        <option value="{{ h }}" {% if hours == h %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {% if sources | length > 1 %}
+    <label style="margin:0">
+      Source
+      <select name="source_id" style="margin:0">
+        <option value="0" {% if source_id == 0 %}selected{% endif %}>All sources</option>
+        {% for s in sources %}
+        <option value="{{ s.id }}" {% if source_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% else %}
+    <input type="hidden" name="source_id" value="0">
+    {% endif %}
+
+    <label style="margin:0">
+      Domain
+      <input type="text" name="qname" value="{{ qname }}" placeholder="e.g. google.com" style="margin:0">
+    </label>
+
+    <label style="margin:0">
+      Client
+      <input type="text" name="client" value="{{ client }}" placeholder="IP or hostname" style="margin:0">
+    </label>
+
+    <div style="display:flex;gap:0.5rem;align-items:flex-end">
+      <label style="margin:0">
+        Status
+        <select name="status" style="margin:0">
+          <option value="" {% if not status %}selected{% endif %}>All</option>
+          <option value="blocked" {% if status == 'blocked' %}selected{% endif %}>Blocked</option>
+          <option value="Cached"  {% if status == 'Cached'  %}selected{% endif %}>Cached</option>
+          <option value="Upstream" {% if status == 'Upstream' %}selected{% endif %}>Upstream</option>
+          <option value="NXDOMAIN" {% if status == 'NXDOMAIN' %}selected{% endif %}>NXDOMAIN</option>
+        </select>
+      </label>
+      <button type="submit" style="margin:0;white-space:nowrap">Filter</button>
+      <a href="/logs/queries" role="button" class="outline secondary" style="margin:0;white-space:nowrap">Reset</a>
+    </div>
+
+  </div>
+</form>
+
+<p class="muted" style="font-size:0.85rem;margin-bottom:0.5rem">
+  {{ total }} entr{{ 'y' if total == 1 else 'ies' }}
+  {% if total_pages > 1 %}&nbsp;·&nbsp; page {{ page }} / {{ total_pages }}{% endif %}
+</p>
+
+{% if entries %}
+<figure>
+  <table style="font-size:0.83rem">
+    <thead>
+      <tr>
+        <th>Time</th>
+        {% if sources | length > 1 %}<th>Source</th>{% endif %}
+        <th>Client</th>
+        <th>Domain</th>
+        <th>Type</th>
+        <th>Response</th>
+        <th>Protocol</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td style="white-space:nowrap;color:var(--pico-muted-color)">
+          {{ e.timestamp[:19].replace("T", " ") if e.timestamp else "—" }}
+        </td>
+        {% if sources | length > 1 %}
+        <td>{{ source_by_id[e.source_id].name if e.source_id in source_by_id else "?" }}</td>
+        {% endif %}
+        <td>
+          {{ e.client_name or e.client_ip or "—" }}
+          {% if e.client_name and e.client_ip %}
+          <br><span class="muted" style="font-size:0.75rem">{{ e.client_ip }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="/logs/queries?hours={{ hours }}&qname={{ e.qname }}">{{ e.qname or "—" }}</a>
+          {% if e.answer %}<br><span class="muted" style="font-size:0.75rem">{{ e.answer[:60] }}{% if e.answer|length > 60 %}…{% endif %}</span>{% endif %}
+        </td>
+        <td><code style="font-size:0.78rem">{{ e.qtype or "—" }}</code></td>
+        <td>
+          {% set rt = e.response_type or "" %}
+          {% if rt in ("Blocked", "BlockedEDNS") %}
+            <span class="badge badge-error">{{ rt }}</span>
+          {% elif rt == "Cached" %}
+            <span class="badge badge-synced">{{ rt }}</span>
+          {% elif rt %}
+            <span class="badge badge-pending">{{ rt }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="muted">{{ e.protocol or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+
+{% if total_pages > 1 %}
+<div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:1rem">
+  {% set qs = "hours=" ~ hours ~ "&source_id=" ~ source_id ~ "&status=" ~ status ~ "&qname=" ~ qname ~ "&client=" ~ client %}
+  {% if page > 1 %}
+  <a href="/logs/queries?{{ qs }}&page={{ page - 1 }}" role="button" class="outline secondary" style="padding:0.2rem 0.6rem">‹ Prev</a>
+  {% endif %}
+  {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+  <a href="/logs/queries?{{ qs }}&page={{ p }}"
+     role="button" class="{% if p == page %}primary{% else %}outline secondary{% endif %}"
+     style="padding:0.2rem 0.6rem">{{ p }}</a>
+  {% endfor %}
+  {% if page < total_pages %}
+  <a href="/logs/queries?{{ qs }}&page={{ page + 1 }}" role="button" class="outline secondary" style="padding:0.2rem 0.6rem">Next ›</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<p class="muted">No entries match the current filters.</p>
+{% endif %}
+
+{% endblock %}

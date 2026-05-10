@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from ipaddress import IPv4Address, IPv4Network
 from typing import Optional
 
 import httpx
@@ -10,7 +11,7 @@ from .client.base import TechnitiumClient
 from .client.dhcp import find_mac_for_ip
 from .client.dns import list_a_records
 from .exceptions import TechnitiumAPIError, TechnitiumInvalidToken, TechnitiumUnavailable
-from .models import Collection, DiscoveredHost, Host
+from .models import Collection, CollectionSubnet, DiscoveredHost, Host
 from .sync import build_fqdn
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,11 @@ async def _discover_hosts(
     collections_result = await db.exec(select(Collection))
     collections = collections_result.all()
 
+    subnets_result = await db.exec(select(CollectionSubnet))
+    subnets_by_col: dict[int, list[str]] = {}
+    for sn in subnets_result.all():
+        subnets_by_col.setdefault(sn.collection_id, []).append(sn.cidr)
+
     zone_suffix = "." + zone
     changed = False
 
@@ -108,7 +114,7 @@ async def _discover_hosts(
         except Exception:
             mac = None
 
-        suggested_id = _suggest_collection(fqdn, zone, collections)
+        suggested_id = _suggest_collection(ip, fqdn, zone, collections, subnets_by_col)
         inner = fqdn[: -(len(zone) + 1)]
         hostname = inner.split(".")[0]
 
@@ -133,12 +139,37 @@ async def _discover_hosts(
         await db.commit()
 
 
-def _suggest_collection(fqdn: str, zone: str, collections: list) -> Optional[int]:
+def _suggest_collection(
+    ip: str,
+    fqdn: str,
+    zone: str,
+    collections: list,
+    subnets_by_col: dict[int, list[str]],
+) -> Optional[int]:
+    # Longest-prefix subnet match first
+    try:
+        addr = IPv4Address(ip)
+        best_col_id = None
+        best_prefix = -1
+        for col in collections:
+            for cidr in subnets_by_col.get(col.id, []):
+                try:
+                    net = IPv4Network(cidr)
+                    if addr in net and net.prefixlen > best_prefix:
+                        best_prefix = net.prefixlen
+                        best_col_id = col.id
+                except ValueError:
+                    pass
+        if best_col_id is not None:
+            return best_col_id
+    except ValueError:
+        pass
+
+    # Fall back to subdomain match
     if not fqdn.endswith("." + zone):
         return None
     inner = fqdn[: -(len(zone) + 1)]
     parts = inner.split(".")
-
     if len(parts) == 1:
         for c in collections:
             if not c.subdomain:

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if mode == "domain" %}{{ qname }}{% else %}{{ client }}{% endif %} — Logs — HARP
+{% endblock %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+<div class="page-header">
+  <h2>
+    {% if mode == "domain" %}
+      {{ qname }}{% if blocked %} <span class="badge badge-error" style="font-size:0.75rem;vertical-align:middle">blocked only</span>{% endif %}
+    {% else %}
+      {{ client }}{% if resolved_client_name %} <span class="muted" style="font-weight:normal;font-size:0.9rem">({{ resolved_client_name }})</span>{% endif %}
+    {% endif %}
+  </h2>
+  <div style="display:flex;gap:0.5rem">
+    <a href="/logs?hours={{ hours }}" role="button" class="outline secondary">← Dashboard</a>
+    {% if mode == "domain" %}
+    <a href="/logs/queries?hours={{ hours }}&qname={{ qname }}{% if blocked %}&status=blocked{% endif %}" role="button" class="outline secondary">Query log →</a>
+    {% else %}
+    <a href="/logs/queries?hours={{ hours }}&client={{ client }}" role="button" class="outline secondary">Query log →</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="filter-pills" style="margin-bottom:1.5rem">
+  {% for h, label in hour_options %}
+  {% if mode == "domain" %}
+  <a href="/logs/analysis?hours={{ h }}&qname={{ qname }}{% if blocked %}&blocked=1{% endif %}" class="filter-pill {% if hours == h %}active{% endif %}">{{ label }}</a>
+  {% else %}
+  <a href="/logs/analysis?hours={{ h }}&client={{ client }}" class="filter-pill {% if hours == h %}active{% endif %}">{{ label }}</a>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{# ── Pie + breakdown ── #}
+<div style="display:grid;grid-template-columns:280px 1fr;gap:1.5rem;margin-bottom:1.5rem;align-items:start">
+
+  <article style="margin:0">
+    <header>
+      <strong>{% if mode == "domain" %}Response types{% else %}Allowed vs Blocked{% endif %}</strong>
+    </header>
+    {% if pie_data %}
+    <canvas id="pie-chart" height="220"></canvas>
+    {% else %}
+    <p class="muted" style="font-size:0.85rem">No data.</p>
+    {% endif %}
+  </article>
+
+  <article style="margin:0">
+    <header>
+      <strong>
+        {% if mode == "domain" %}Top clients{% else %}Top domains{% endif %}
+      </strong>
+    </header>
+    {% if top_list %}
+    <table style="font-size:0.83rem">
+      <thead>
+        <tr>
+          {% if mode == "domain" %}
+          <th>Client</th><th style="text-align:right">Total</th><th style="text-align:right">Blocked</th><th style="text-align:right">Allowed</th>
+          {% else %}
+          <th>Domain</th><th style="text-align:right">Total</th><th style="text-align:right">Blocked</th><th style="text-align:right">Allowed</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in top_list %}
+        <tr>
+          {% if mode == "domain" %}
+          <td style="white-space:nowrap">
+            <a href="/logs/analysis?hours={{ hours }}&client={{ row.client_ip }}">{{ row.client_ip }}</a>
+            {% if row.resolved_name %}<span class="muted" style="font-size:0.78rem"> ({{ row.resolved_name }})</span>{% endif %}
+          </td>
+          {% else %}
+          <td><a href="/logs/analysis?hours={{ hours }}&qname={{ row.qname }}">{{ row.qname }}</a></td>
+          {% endif %}
+          <td style="text-align:right">{{ row.cnt }}</td>
+          <td style="text-align:right">{% if row.blocked %}<span style="color:var(--pico-del-color)">{{ row.blocked }}</span>{% else %}—{% endif %}</td>
+          <td style="text-align:right">{{ row.cnt - row.blocked }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted" style="font-size:0.85rem">No data.</p>
+    {% endif %}
+  </article>
+
+</div>
+
+{# ── Entry table ── #}
+<article>
+  <header><strong>Recent entries</strong> <span class="muted" style="font-weight:normal;font-size:0.85rem">(last 50 in window)</span></header>
+  {% if entries %}
+  <figure style="margin:0">
+    <table style="font-size:0.82rem">
+      <thead>
+        <tr>
+          <th>Time</th>
+          {% if sources | length > 1 %}<th>Source</th>{% endif %}
+          {% if mode == "domain" %}<th>Client</th>{% else %}<th>Domain</th>{% endif %}
+          <th>Type</th>
+          <th>Response</th>
+          <th>Protocol</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td style="white-space:nowrap;color:var(--pico-muted-color)">
+            {{ e.timestamp[:19].replace("T", " ") if e.timestamp else "—" }}
+          </td>
+          {% if sources | length > 1 %}
+          <td>{{ source_by_id[e.source_id].name if e.source_id in source_by_id else "?" }}</td>
+          {% endif %}
+          {% if mode == "domain" %}
+          <td style="white-space:nowrap">
+            <a href="/logs/analysis?hours={{ hours }}&client={{ e.client_ip }}">{{ e.client_ip or "—" }}</a>
+            {% if e.client_name %}<span class="muted" style="font-size:0.75rem"> ({{ e.client_name }})</span>{% endif %}
+          </td>
+          {% else %}
+          <td>
+            <a href="/logs/analysis?hours={{ hours }}&qname={{ e.qname }}">{{ e.qname or "—" }}</a>
+            {% if e.answer %}<br><span class="muted" style="font-size:0.75rem">{{ e.answer[:60] }}{% if e.answer|length > 60 %}…{% endif %}</span>{% endif %}
+          </td>
+          {% endif %}
+          <td><code style="font-size:0.78rem">{{ e.qtype or "—" }}</code></td>
+          <td>
+            {% set rt = e.response_type or "" %}
+            {% if rt in ("Blocked", "BlockedEDNS") %}
+              <span class="badge badge-error">{{ rt }}</span>
+            {% elif rt == "Cached" %}
+              <span class="badge badge-synced">{{ rt }}</span>
+            {% elif rt %}
+              <span class="badge badge-pending">{{ rt }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="muted">{{ e.protocol or "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </figure>
+  {% else %}
+  <p class="muted">No entries in this window.</p>
+  {% endif %}
+</article>
+
+<script>
+const pieRaw = {{ pie_json | safe }};
+const PALETTE = [
+  '#6366f1','#ef4444','#22c55e','#f59e0b','#3b82f6',
+  '#ec4899','#14b8a6','#8b5cf6','#f97316','#06b6d4',
+];
+{% if pie_data %}
+const BLOCKED_COLORS = { 'Blocked': '#ef4444', 'Allowed': '#22c55e' };
+const colors = pieRaw.map(r =>
+  BLOCKED_COLORS[r.label] ?? PALETTE[pieRaw.indexOf(r) % PALETTE.length]
+);
+new Chart(document.getElementById('pie-chart'), {
+  type: 'doughnut',
+  data: {
+    labels: pieRaw.map(r => r.label),
+    datasets: [{ data: pieRaw.map(r => r.cnt), backgroundColor: colors }],
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+});
+{% endif %}
+</script>
+
+{% endblock %}

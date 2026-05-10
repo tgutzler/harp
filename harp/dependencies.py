@@ -108,12 +108,11 @@ async def get_global_settings(db: AsyncSession = Depends(get_db)) -> GlobalSetti
 
 async def get_technitium_client(
     request: Request,
-    user: User = Depends(require_auth),
     gs: GlobalSettings = Depends(get_global_settings),
 ) -> TechnitiumClient:
-    if not user.technitium_token_encrypted:
-        raise HTTPException(status_code=400, detail="No API token configured — visit your profile.")
-    token = decrypt_token(user.technitium_token_encrypted, settings.secret_key)
+    if not gs.technitium_token_encrypted:
+        raise HTTPException(status_code=400, detail="No API token configured — visit Settings.")
+    token = decrypt_token(gs.technitium_token_encrypted, settings.secret_key)
     return TechnitiumClient(
         base_url=gs.technitium_url,
         token=token,

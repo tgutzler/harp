@@ -52,7 +52,8 @@ async def hosts_index(
         })
 
     sort_key = _SORT_KEYS.get(sort, _SORT_KEYS["hostname"])
-    rows.sort(key=sort_key, reverse=(dir == "desc"))
+    ip_key = _SORT_KEYS["ip"]
+    rows.sort(key=lambda r: (sort_key(r), ip_key(r)), reverse=(dir == "desc"))
 
     ctx["rows"] = rows
     ctx["sort"] = sort

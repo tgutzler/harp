@@ -1,3 +1,4 @@
+from ipaddress import ip_address as parse_ip
 from pathlib import Path
 from typing import Optional
 
@@ -39,13 +40,12 @@ def _get_http_client(request: Request) -> httpx.AsyncClient:
 
 async def _try_client(
     request: Request,
-    user: User,
     gs: GlobalSettings,
 ) -> Optional[TechnitiumClient]:
-    if not user.technitium_token_encrypted:
+    if not gs.technitium_token_encrypted:
         return None
     try:
-        token = decrypt_token(user.technitium_token_encrypted, app_settings.secret_key)
+        token = decrypt_token(gs.technitium_token_encrypted, app_settings.secret_key)
         return TechnitiumClient(
             base_url=gs.technitium_url,
             token=token,
@@ -167,6 +167,14 @@ async def create_collection(
 
 # ── Collection detail ─────────────────────────────────────────────────────────
 
+_SORT_KEYS = {
+    "hostname": lambda r: r["host"].hostname.lower(),
+    "fqdn":     lambda r: r["fqdn"].lower(),
+    "ip":       lambda r: parse_ip(r["host"].ip_address),
+    "mac":      lambda r: r["host"].mac_address.upper(),
+}
+
+
 @router.get("/{collection_id}")
 async def collection_detail(
     request: Request,
@@ -174,6 +182,8 @@ async def collection_detail(
     user: User = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
     gs: GlobalSettings = Depends(get_global_settings),
+    sort: str = "hostname",
+    dir: str = "asc",
 ):
     collection = await db.get(Collection, collection_id)
     if not collection:
@@ -181,7 +191,7 @@ async def collection_detail(
 
     ctx = await base_context(request, db)
     sn = await db.exec(select(CollectionSubnet).where(CollectionSubnet.collection_id == collection_id))
-    hosts = await db.exec(select(Host).where(Host.collection_id == collection_id).order_by(Host.hostname))
+    hosts_result = await db.exec(select(Host).where(Host.collection_id == collection_id))
 
     # Blocking assignments
     bl_links = await db.exec(select(CollectionBlockList).where(CollectionBlockList.collection_id == collection_id))
@@ -198,10 +208,19 @@ async def collection_detail(
     assigned_rulesets = [r for r in all_rs_list if r.id in assigned_rs_ids]
     available_rulesets = [r for r in all_rs_list if r.id not in assigned_rs_ids]
 
+    rows = []
+    for host in hosts_result.all():
+        rows.append({"host": host, "fqdn": build_fqdn(host.hostname, collection.subdomain, gs.zone)})
+    sort_key = _SORT_KEYS.get(sort, _SORT_KEYS["hostname"])
+    ip_key = _SORT_KEYS["ip"]
+    rows.sort(key=lambda r: (sort_key(r), ip_key(r)), reverse=(dir == "desc"))
+
     ctx["collection"] = collection
     ctx["collection_id"] = collection_id
     ctx["subnets"] = sn.all()
-    ctx["hosts"] = hosts.all()
+    ctx["rows"] = rows
+    ctx["sort"] = sort
+    ctx["dir"] = dir
     ctx["zone"] = gs.zone
     ctx["assigned_blocklists"] = assigned_blocklists
     ctx["available_blocklists"] = available_blocklists
@@ -295,7 +314,7 @@ async def update_collection(
     db.add(collection)
     await db.commit()
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
 
     # Resync all hosts if subdomain changed
     if old_subdomain != collection.subdomain:
@@ -335,7 +354,7 @@ async def delete_collection(
     subnets = subnets_result.all()
     before = collection_snapshot(collection, subnets)
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     hosts = await db.exec(select(Host).where(Host.collection_id == collection_id))
     for host in hosts.all():
         if client:
@@ -397,7 +416,7 @@ async def create_host_global(
     db.add(host)
     await db.flush()
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         status, error = await _do_sync(client, host, collection, gs.zone)
         host.sync_status = status
@@ -442,7 +461,7 @@ async def add_host(
     db.add(host)
     await db.flush()
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         status, error = await _do_sync(client, host, collection, gs.zone)
         host.sync_status = status
@@ -502,9 +521,10 @@ async def edit_host_form(
     if not host or not collection or host.collection_id != collection_id:
         return HTMLResponse("")
     fqdn = build_fqdn(host.hostname, collection.subdomain, gs.zone)
+    collections = (await db.exec(select(Collection).order_by(Collection.name))).all()
     return templates.TemplateResponse(request, "collections/_host_edit_row.html", {
         "host": host, "collection": collection, "fqdn": fqdn,
-        "show_collection": show_collection,
+        "show_collection": show_collection, "collections": collections,
     })
 
 
@@ -519,6 +539,7 @@ async def update_host(
     hostname: str = Form(...),
     ip_address: str = Form(...),
     mac_address: str = Form(...),
+    new_collection_id: Optional[int] = Form(None),
     show_collection: str = Form("false"),
 ):
     host = await db.get(Host, host_id)
@@ -526,18 +547,25 @@ async def update_host(
     if not host or not collection or host.collection_id != collection_id:
         return HTMLResponse("")
 
+    target_collection = collection
+    if new_collection_id and new_collection_id != collection_id:
+        moved = await db.get(Collection, new_collection_id)
+        if moved:
+            target_collection = moved
+
     before = host_snapshot(host)
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         await unsync_host(client, host.hostname, host.ip_address, host.mac_address, collection.subdomain, gs.zone)
 
     host.hostname = hostname.strip().lower()
     host.ip_address = ip_address.strip()
     host.mac_address = normalize_mac(mac_address)
+    host.collection_id = target_collection.id
 
     if client:
-        status, error = await _do_sync(client, host, collection, gs.zone)
+        status, error = await _do_sync(client, host, target_collection, gs.zone)
         host.sync_status = status
         host.last_error = error
     else:
@@ -552,9 +580,9 @@ async def update_host(
     await db.commit()
     await db.refresh(host)
 
-    fqdn = build_fqdn(host.hostname, collection.subdomain, gs.zone)
+    fqdn = build_fqdn(host.hostname, target_collection.subdomain, gs.zone)
     return templates.TemplateResponse(request, "collections/_host_row.html", {
-        "host": host, "collection": collection, "fqdn": fqdn,
+        "host": host, "collection": target_collection, "fqdn": fqdn,
         "show_collection": show_collection.lower() == "true",
     }, headers={"HX-Trigger": "undoUpdated"})
 
@@ -577,7 +605,7 @@ async def resync_host(
     if not collection:
         return HTMLResponse("")
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         status, error = await _do_sync(client, host, collection, gs.zone)
         host.sync_status = status
@@ -614,7 +642,7 @@ async def delete_host(
 
     before = host_snapshot(host)
     collection = await db.get(Collection, collection_id)
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client and collection:
         await unsync_host(client, host.hostname, host.ip_address, host.mac_address, collection.subdomain, gs.zone)
 
@@ -647,9 +675,9 @@ def _render_with_blocking_error(template_name: str, ctx: dict, error: Optional[s
     return HTMLResponse(content)
 
 
-async def _sync_blocking_safe(request: Request, user: User, gs: GlobalSettings, db: AsyncSession) -> Optional[str]:
+async def _sync_blocking_safe(request: Request, gs: GlobalSettings, db: AsyncSession) -> Optional[str]:
     """Returns error message if blocking sync fails, else None."""
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if not client:
         return None
     try:
@@ -688,7 +716,7 @@ async def assign_blocklist(
     if not existing.first():
         db.add(CollectionBlockList(collection_id=collection_id, blocklist_id=blocklist_id))
         await db.commit()
-        sync_error = await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, gs, db)
 
     return _render_with_blocking_error(
         "collections/_blocklist_item.html",
@@ -716,7 +744,7 @@ async def unassign_blocklist(
     if link:
         await db.delete(link)
         await db.commit()
-        sync_error = await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, gs, db)
     oob = _blocking_error_oob(sync_error)
     return HTMLResponse(oob)
 
@@ -744,7 +772,7 @@ async def assign_ruleset(
     if not existing.first():
         db.add(CollectionRuleSet(collection_id=collection_id, ruleset_id=ruleset_id))
         await db.commit()
-        sync_error = await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, gs, db)
 
     return _render_with_blocking_error(
         "collections/_ruleset_item.html",
@@ -772,7 +800,7 @@ async def unassign_ruleset(
     if link:
         await db.delete(link)
         await db.commit()
-        sync_error = await _sync_blocking_safe(request, user, gs, db)
+        sync_error = await _sync_blocking_safe(request, gs, db)
     oob = _blocking_error_oob(sync_error)
     return HTMLResponse(oob)
 
@@ -791,7 +819,7 @@ async def toggle_blocking(
     collection.blocking_enabled = not collection.blocking_enabled
     db.add(collection)
     await db.commit()
-    sync_error = await _sync_blocking_safe(request, user, gs, db)
+    sync_error = await _sync_blocking_safe(request, gs, db)
     return _render_with_blocking_error(
         "collections/_blocking_toggle.html",
         {"request": request, "collection": collection},
@@ -813,7 +841,7 @@ async def toggle_nxdomain(
     collection.block_as_nxdomain = not collection.block_as_nxdomain
     db.add(collection)
     await db.commit()
-    sync_error = await _sync_blocking_safe(request, user, gs, db)
+    sync_error = await _sync_blocking_safe(request, gs, db)
     return _render_with_blocking_error(
         "collections/_blocking_toggle.html",
         {"request": request, "collection": collection},

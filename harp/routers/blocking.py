@@ -32,18 +32,18 @@ def _get_http_client(request: Request) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=10.0)
 
 
-async def _try_client(request: Request, user: User, gs: GlobalSettings) -> Optional[TechnitiumClient]:
-    if not user.technitium_token_encrypted:
+async def _try_client(request: Request, gs: GlobalSettings) -> Optional[TechnitiumClient]:
+    if not gs.technitium_token_encrypted:
         return None
     try:
-        token = decrypt_token(user.technitium_token_encrypted, app_settings.secret_key)
+        token = decrypt_token(gs.technitium_token_encrypted, app_settings.secret_key)
         return TechnitiumClient(base_url=gs.technitium_url, token=token, http_client=_get_http_client(request))
     except ValueError:
         return None
 
 
 async def _sync_safe(request: Request, user: User, gs: GlobalSettings, db: AsyncSession) -> None:
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if client:
         try:
             await sync_blocking(client, db)
@@ -60,9 +60,9 @@ async def manual_sync(
     user: User = Depends(require_auth),
     gs: GlobalSettings = Depends(get_global_settings),
 ):
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
     if not client:
-        return HTMLResponse('<span class="badge badge-error">No API token configured — visit your profile.</span>')
+        return HTMLResponse('<span class="badge badge-error">No API token configured — check Settings.</span>')
     try:
         await sync_blocking(client, db)
         return HTMLResponse('<span class="badge badge-synced">Pushed to Technitium</span>')
@@ -104,6 +104,26 @@ async def create_list(
         return templates.TemplateResponse(request, "blocking/_list_row.html", ctx)
 
     return HTMLResponse("", headers={"HX-Redirect": "/blocking/lists"})
+
+
+@router.patch("/lists/{list_id}")
+async def rename_list(
+    request: Request,
+    list_id: int,
+    name: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(require_auth),
+    ctx: dict = Depends(base_context),
+):
+    entry = await db.get(BlockListSubscription, list_id)
+    if not entry:
+        return HTMLResponse("", status_code=404)
+    entry.name = name.strip() or entry.name
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    ctx["entry"] = entry
+    return templates.TemplateResponse(request, "blocking/_list_row.html", ctx)
 
 
 @router.post("/lists/{list_id}/toggle")

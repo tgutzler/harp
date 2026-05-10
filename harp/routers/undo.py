@@ -28,11 +28,11 @@ def _get_http_client(request: Request) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=10.0)
 
 
-async def _try_client(request: Request, user: User, gs: GlobalSettings) -> Optional[TechnitiumClient]:
-    if not user.technitium_token_encrypted:
+async def _try_client(request: Request, gs: GlobalSettings) -> Optional[TechnitiumClient]:
+    if not gs.technitium_token_encrypted:
         return None
     try:
-        token = decrypt_token(user.technitium_token_encrypted, app_settings.secret_key)
+        token = decrypt_token(gs.technitium_token_encrypted, app_settings.secret_key)
         return TechnitiumClient(
             base_url=gs.technitium_url,
             token=token,
@@ -236,7 +236,7 @@ async def undo_last(
     if not entry:
         return HTMLResponse("", headers={"HX-Redirect": str(request.headers.get("HX-Current-URL", "/collections"))})
 
-    client = await _try_client(request, user, gs)
+    client = await _try_client(request, gs)
 
     if entry.entity_type == "host":
         await _undo_host(db, entry, client, gs.zone)
